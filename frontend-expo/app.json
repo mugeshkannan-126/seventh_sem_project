@@ -3,6 +3,9 @@
     "name": "frontend-expo",
     "slug": "frontend-expo",
     "version": "1.0.0",
+    "updates": {
+      "enabled": false
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "frontendexpo",
