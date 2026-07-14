@@ -14,6 +14,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
+import { File } from 'expo-file-system';
+import { supabase } from '../utils/supabase';
 import {
   GovBuilding,
   MapPinIcon,
@@ -36,9 +40,152 @@ export default function ComplaintScreen() {
   const [category, setCategory] = useState('Pothole');
   const [location, setLocation] = useState('420 Park Ave South, Manhattan');
   const [description, setDescription] = useState('');
+  
   const [photoUploaded, setPhotoUploaded] = useState(false);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [imageFileName, setImageFileName] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [gettingLocation, setGettingLocation] = useState(false);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submittedId, setSubmittedId] = useState<number | null>(null);
+
+  // Initialize with empty location until fetched
+  React.useEffect(() => {
+    setLocation('');
+  }, []);
+
+  const fetchLocation = async () => {
+    setGettingLocation(true);
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Allow location access to pinpoint the issue automatically.');
+        setGettingLocation(false);
+        return;
+      }
+
+      let loc = await Location.getCurrentPositionAsync({});
+      setLatitude(loc.coords.latitude);
+      setLongitude(loc.coords.longitude);
+      
+      // Reverse geocode to get address
+      let geocode = await Location.reverseGeocodeAsync({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+      });
+      
+      if (geocode && geocode.length > 0) {
+        const place = geocode[0];
+        const addressStr = [place.name || place.street, place.city || place.subregion].filter(Boolean).join(', ');
+        setLocation(addressStr);
+      } else {
+        setLocation(`${loc.coords.latitude.toFixed(4)}, ${loc.coords.longitude.toFixed(4)}`);
+      }
+    } catch (error) {
+      console.log('Error fetching location:', error);
+      Alert.alert('Location Error', 'Failed to fetch current location. Please enter manually.');
+    } finally {
+      setGettingLocation(false);
+    }
+  };
+
+  const pickImage = () => {
+    Alert.alert('Upload Photo', 'Choose an option', [
+      { text: 'Camera', onPress: launchCamera },
+      { text: 'Gallery', onPress: launchGallery },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const launchCamera = async () => {
+    let { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Camera permission is required to take photos.');
+      return;
+    }
+    
+    let result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.7,
+    });
+    handleImageResult(result);
+  };
+
+  const launchGallery = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.7,
+    });
+    handleImageResult(result);
+  };
+
+  const handleImageResult = (result: ImagePicker.ImagePickerResult) => {
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const uri = result.assets[0].uri;
+      const fileName = uri.split('/').pop() || 'photo.jpg';
+      setImageFileName(fileName);
+      uploadImage(uri, fileName);
+    }
+  };
+
+  const uploadImage = async (uri: string, fileName: string) => {
+    setIsUploadingImage(true);
+    console.log('=== UPLOAD DEBUG START ===');
+    console.log('URI:', uri);
+    console.log('Platform:', Platform.OS);
+    try {
+      let fileData: Uint8Array | Blob;
+
+      if (Platform.OS === 'web') {
+        const res = await fetch(uri);
+        fileData = await res.blob();
+        console.log('Web Blob size:', (fileData as Blob).size);
+      } else {
+        // Use the new expo-file-system File class (v54+) which handles
+        // Expo Go's sandboxed file:// URIs correctly
+        const file = new File(uri);
+        fileData = await file.bytes();
+        console.log('Bytes length:', fileData.byteLength);
+      }
+
+      const filePath = `${Date.now()}_${fileName}`;
+      console.log('Uploading to path:', filePath);
+
+      const { data, error } = await supabase.storage
+        .from('complaint-images')
+        .upload(filePath, fileData, {
+          contentType: 'image/jpeg',
+          upsert: false,
+        });
+
+      console.log('Upload data:', JSON.stringify(data));
+      console.log('Upload error:', JSON.stringify(error));
+
+      if (error) throw error;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('complaint-images')
+        .getPublicUrl(filePath);
+
+      console.log('Public URL:', publicUrlData.publicUrl);
+      console.log('=== UPLOAD SUCCESS ===');
+      setUploadedImageUrl(publicUrlData.publicUrl);
+      setPhotoUploaded(true);
+    } catch (error: any) {
+      console.log('Upload error:', error?.message || error);
+      Alert.alert('Upload Error', error.message || 'Failed to upload image.');
+      setPhotoUploaded(false);
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
   const categories = [
     { name: 'Pothole' },
@@ -84,19 +231,21 @@ export default function ComplaintScreen() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          title: `${category} Issue at ${location.split(',')[0]}`,
+          title: `${category} Issue at ${location.split(',')[0] || 'Unknown location'}`,
           description: description,
           category: category,
-          latitude: 40.7128, // Mock coordinate
-          longitude: -74.0060, // Mock coordinate
+          latitude: latitude || 0,
+          longitude: longitude || 0,
           address: location,
           citizen_id: user.user_id,
           priority: 'Medium',
+          image_url: uploadedImageUrl,
         }),
       });
 
       const result = await response.json();
       if (response.ok && result.success) {
+        setSubmittedId(result.data?.complaint_id || null);
         setSubmitted(true);
         setTimeout(() => {
           router.push('/');
@@ -137,7 +286,7 @@ export default function ComplaintScreen() {
               <CheckCircleIcon size={64} color="#00a86b" />
               <Text style={styles.successTitle}>Report Submitted!</Text>
               <Text style={styles.successSubtitle}>
-                Thank you for contributing to your city. Your tracking ID is #CF-9922.
+                Thank you for contributing to your city.{submittedId ? ` Your tracking ID is #CF-${submittedId}.` : ''}
               </Text>
               <Text style={styles.redirectText}>Returning to dashboard...</Text>
             </View>
@@ -157,16 +306,23 @@ export default function ComplaintScreen() {
                   <TouchableOpacity
                     style={[styles.uploadBox, photoUploaded && styles.uploadBoxActive]}
                     activeOpacity={0.8}
-                    onPress={() => setPhotoUploaded(!photoUploaded)}
+                    onPress={pickImage}
+                    disabled={isUploadingImage}
                   >
-                    <CameraIcon size={32} color={photoUploaded ? '#00386c' : '#737781'} />
-                    <Text style={[styles.uploadText, photoUploaded && styles.uploadTextActive]}>
-                      {photoUploaded
-                        ? 'Photo Uploaded Successfully!'
-                        : 'Tap to capture or upload from gallery'}
-                    </Text>
-                    {photoUploaded && (
-                      <Text style={styles.photoFilename}>IMG_20260714_1215.jpg</Text>
+                    {isUploadingImage ? (
+                      <ActivityIndicator size="large" color="#00386c" />
+                    ) : (
+                      <>
+                        <CameraIcon size={32} color={photoUploaded ? '#00386c' : '#737781'} />
+                        <Text style={[styles.uploadText, photoUploaded && styles.uploadTextActive]}>
+                          {photoUploaded
+                            ? 'Photo Uploaded Successfully!'
+                            : 'Tap to capture or upload from gallery'}
+                        </Text>
+                        {photoUploaded && (
+                          <Text style={styles.photoFilename}>{imageFileName}</Text>
+                        )}
+                      </>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -211,7 +367,16 @@ export default function ComplaintScreen() {
                   </View>
                   <View style={styles.locationInfoRow}>
                     <InfoIcon size={14} color="#737781" />
-                    <Text style={styles.locationInfoText}>Simulated current GPS location selected.</Text>
+                    <Text style={styles.locationInfoText}>
+                      {latitude ? 'Real GPS location captured.' : 'Enter location manually or fetch.'}
+                    </Text>
+                    <TouchableOpacity onPress={fetchLocation} disabled={gettingLocation} style={{ marginLeft: 'auto' }}>
+                      {gettingLocation ? (
+                        <ActivityIndicator size="small" color="#00386c" />
+                      ) : (
+                        <Text style={{ color: '#00386c', fontSize: 12, fontWeight: '600' }}>Fetch GPS</Text>
+                      )}
+                    </TouchableOpacity>
                   </View>
                 </View>
 

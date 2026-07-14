@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from app.models.assignment import Assignment, AssignmentStatusEnum
 from app.models.complaint import Complaint, ComplaintStatusEnum
 from app.models.status_history import StatusHistory
+from app.models.notification import Notification, NotificationStatusEnum
 from app.schemas.assignment import AssignmentCreate, AssignmentUpdate
 
 def get_assignments(db: Session):
@@ -59,6 +60,37 @@ def create_assignment(db: Session, assignment_in: AssignmentCreate):
             remarks=assignment_in.remarks or "Complaint assigned to staff."
         )
         db.add(db_status)
+        
+        # Notify citizen about assignment
+        if db_complaint:
+            db_notification = Notification(
+                user_id=db_complaint.citizen_id,
+                complaint_id=assignment_in.complaint_id,
+                title="Complaint Assigned",
+                message=f"Your complaint '{db_complaint.title}' (ID: CF-{db_complaint.complaint_id}) has been assigned to a staff member.",
+                status=NotificationStatusEnum.UNREAD
+            )
+            db.add(db_notification)
+
+        # Notify the assigned engineer/official
+        if assignment_in.engineer_id:
+            db_notif_eng = Notification(
+                user_id=assignment_in.engineer_id,
+                complaint_id=assignment_in.complaint_id,
+                title="New Assignment",
+                message=f"You have been assigned to complaint CF-{assignment_in.complaint_id}.",
+                status=NotificationStatusEnum.UNREAD
+            )
+            db.add(db_notif_eng)
+        if assignment_in.official_id:
+            db_notif_off = Notification(
+                user_id=assignment_in.official_id,
+                complaint_id=assignment_in.complaint_id,
+                title="New Assignment",
+                message=f"You have been assigned to complaint CF-{assignment_in.complaint_id}.",
+                status=NotificationStatusEnum.UNREAD
+            )
+            db.add(db_notif_off)
         
         db.commit()
         db.refresh(db_assignment)

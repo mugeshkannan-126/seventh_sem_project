@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from app.models.complaint import Complaint, ComplaintStatusEnum
 from app.models.complaint_image import ComplaintImage
 from app.models.status_history import StatusHistory
+from app.models.notification import Notification, NotificationStatusEnum
 from app.schemas.complaint import ComplaintCreate, ComplaintUpdate
 
 def get_complaints(db: Session):
@@ -75,6 +76,16 @@ def create_complaint(db: Session, complaint_in: ComplaintCreate):
         )
         db.add(db_history)
 
+        # 4. Create notification for the citizen
+        db_notification = Notification(
+            user_id=complaint_in.citizen_id,
+            complaint_id=db_complaint.complaint_id,
+            title="Complaint Submitted",
+            message=f"Your complaint '{db_complaint.title}' (ID: CF-{db_complaint.complaint_id}) has been submitted successfully.",
+            status=NotificationStatusEnum.UNREAD
+        )
+        db.add(db_notification)
+
         db.commit()
         db.refresh(db_complaint)
         return db_complaint
@@ -123,6 +134,16 @@ def update_complaint(db: Session, db_complaint: Complaint, complaint_in: Complai
                 remarks=complaint_in.remarks or f"Status changed from {old_status.value if old_status else 'None'} to {new_status.value}."
             )
             db.add(db_history)
+
+            # Notify the citizen about the status change
+            db_notification = Notification(
+                user_id=db_complaint.citizen_id,
+                complaint_id=db_complaint.complaint_id,
+                title="Status Updated",
+                message=f"Your complaint '{db_complaint.title}' (ID: CF-{db_complaint.complaint_id}) status changed to '{new_status.value}'.",
+                status=NotificationStatusEnum.UNREAD
+            )
+            db.add(db_notification)
 
         db.commit()
         db.refresh(db_complaint)

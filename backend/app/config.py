@@ -5,6 +5,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     PROJECT_NAME: str = "Smart Civic Platform API"
     API_V1_STR: str = "/api/v1"
+    SUPABASE_URL: str
+    SUPABASE_KEY: str
 
     model_config = SettingsConfigDict(
         env_file=".env",

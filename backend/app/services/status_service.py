@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from app.models.status_history import StatusHistory
 from app.models.complaint import Complaint
+from app.models.notification import Notification, NotificationStatusEnum
 from app.schemas.status_history import StatusHistoryCreate
 
 def get_status_history_by_complaint(db: Session, complaint_id: int):
@@ -34,6 +35,16 @@ def create_status_history(db: Session, status_in: StatusHistoryCreate):
         db_complaint = db.query(Complaint).filter(Complaint.complaint_id == status_in.complaint_id).first()
         if db_complaint:
             db_complaint.status = status_in.status
+
+            # Notify the citizen
+            db_notification = Notification(
+                user_id=db_complaint.citizen_id,
+                complaint_id=db_complaint.complaint_id,
+                title="Status Updated",
+                message=f"Your complaint '{db_complaint.title}' (ID: CF-{db_complaint.complaint_id}) status changed to '{status_in.status.value}'.",
+                status=NotificationStatusEnum.UNREAD
+            )
+            db.add(db_notification)
             
         db.commit()
         db.refresh(db_status)
@@ -61,6 +72,16 @@ def update_status_history(db: Session, db_status: StatusHistory, remarks: str | 
             db_complaint = db.query(Complaint).filter(Complaint.complaint_id == db_status.complaint_id).first()
             if db_complaint:
                 db_complaint.status = status_val
+
+                # Notify the citizen
+                db_notification = Notification(
+                    user_id=db_complaint.citizen_id,
+                    complaint_id=db_complaint.complaint_id,
+                    title="Status Updated",
+                    message=f"Your complaint '{db_complaint.title}' (ID: CF-{db_complaint.complaint_id}) status changed to '{status_val.value}'.",
+                    status=NotificationStatusEnum.UNREAD
+                )
+                db.add(db_notification)
                 
         db.commit()
         db.refresh(db_status)

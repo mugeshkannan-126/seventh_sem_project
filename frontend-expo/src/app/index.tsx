@@ -48,53 +48,52 @@ export default function AppScreen() {
   const [loading, setLoading] = useState(false);
   const [reports, setReports] = useState<any[]>([]);
   const [fetchingReports, setFetchingReports] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  // Default fallback reports if backend is empty
-  const defaultReports = [
-    {
-      complaint_id: 1,
-      title: 'Main Street Pothole',
-      category: 'Pothole',
-      address: '420 Park Ave South, Manhattan',
-      status: 'Under Review',
-      created_at: 'Today, 10:14 AM',
-      description: 'Deep pothole in the middle lane causing cars to swerve dangerously.',
-      statusColor: '#ff6f32',
-    },
-    {
-      complaint_id: 2,
-      title: 'Water Leakage',
-      category: 'Leakage',
-      address: 'Central Park West & 86th St',
-      status: 'Resolved',
-      created_at: 'Yesterday, 4:30 PM',
-      description: 'Water main leaking onto the pedestrian walkway near the lake.',
-      statusColor: '#00a86b',
-    },
-  ];
-
-  // Fetch complaints from the backend
+  // Fetch complaints for the logged-in citizen from the backend
   const fetchComplaints = async () => {
+    const user = session.getUser();
+    if (!user) return;
+
     setFetchingReports(true);
     try {
-      const response = await fetch(`${API_BASE}/complaints`);
+      const response = await fetch(`${API_BASE}/complaints/citizen/${user.user_id}`);
       const result = await response.json();
-      if (result.success && result.data && result.data.length > 0) {
+      if (result.success && result.data) {
         setReports(result.data);
       } else {
-        setReports(defaultReports);
+        setReports([]);
       }
     } catch (error) {
       console.log('Error fetching complaints from backend:', error);
-      setReports(defaultReports);
+      setReports([]);
     } finally {
       setFetchingReports(false);
+    }
+  };
+
+  // Fetch notifications for the logged-in user
+  const fetchNotifications = async () => {
+    const user = session.getUser();
+    if (!user) return;
+
+    try {
+      const response = await fetch(`${API_BASE}/notifications/${user.user_id}`);
+      const result = await response.json();
+      if (result.success && result.data) {
+        setNotifications(result.data);
+        setUnreadCount(result.data.filter((n: any) => n.status === 'Unread').length);
+      }
+    } catch (error) {
+      console.log('Error fetching notifications:', error);
     }
   };
 
   useEffect(() => {
     if (isLoggedIn) {
       fetchComplaints();
+      fetchNotifications();
     }
   }, [isLoggedIn]);
 
@@ -227,6 +226,11 @@ export default function AppScreen() {
           <View style={styles.headerActions}>
             <TouchableOpacity style={styles.notificationButton} activeOpacity={0.8}>
               <BellIcon size={20} color="#00386c" />
+              {unreadCount > 0 && (
+                <View style={styles.notifBadge}>
+                  <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                </View>
+              )}
             </TouchableOpacity>
             <TouchableOpacity style={styles.profileIconButton} activeOpacity={0.8} onPress={() => router.push('/profile')}>
               <PersonIcon size={22} color="#00386c" />
@@ -289,6 +293,14 @@ export default function AppScreen() {
 
             {fetchingReports ? (
               <ActivityIndicator size="large" color="#00386c" style={{ marginTop: 20 }} />
+            ) : reports.length === 0 ? (
+              <View style={styles.emptyState}>
+                <PlusIcon size={48} color="#c2c6d1" />
+                <Text style={styles.emptyTitle}>No Reports Yet</Text>
+                <Text style={styles.emptySubtitle}>
+                  You haven't filed any civic reports. Tap "Report New Issue" to get started.
+                </Text>
+              </View>
             ) : (
               reports.map((report) => (
                 <View key={report.complaint_id} style={styles.reportCard}>
@@ -304,7 +316,7 @@ export default function AppScreen() {
                         <ClockIcon size={12} color={getStatusColor(report.status)} />
                       )}
                       <Text style={[styles.statusText, { color: getStatusColor(report.status) }]}>
-                        {report.status || 'Pending'}
+                        {report.status || 'Submitted'}
                       </Text>
                     </View>
                   </View>
@@ -858,6 +870,42 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 20,
     backgroundColor: '#f8f9ff',
+    position: 'relative',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: '#ba1a1a',
+    borderRadius: 10,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  notifBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    gap: 12,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#424750',
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: '#737781',
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 20,
   },
   dashboardScroll: {
     padding: 20,
