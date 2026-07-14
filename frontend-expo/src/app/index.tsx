@@ -11,6 +11,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Modal,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -50,6 +52,7 @@ export default function AppScreen() {
   const [fetchingReports, setFetchingReports] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   // Fetch complaints for the logged-in citizen from the backend
   const fetchComplaints = async () => {
@@ -96,6 +99,25 @@ export default function AppScreen() {
       fetchNotifications();
     }
   }, [isLoggedIn]);
+
+  const markNotificationRead = async (notification: any) => {
+    if (notification.status === 'Read') return;
+    try {
+      const response = await fetch(`${API_BASE}/notifications/${notification.notification_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Read' })
+      });
+      if (response.ok) {
+        setNotifications(prev => 
+          prev.map(n => n.notification_id === notification.notification_id ? { ...n, status: 'Read' } : n)
+        );
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.log('Error marking notification read:', error);
+    }
+  };
 
   // Handle Sign In (calls API /users/login)
   const handleSignIn = async () => {
@@ -224,7 +246,11 @@ export default function AppScreen() {
             <Text style={styles.headerTitle}>CivicFlow</Text>
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.notificationButton} activeOpacity={0.8}>
+            <TouchableOpacity 
+              style={styles.notificationButton} 
+              activeOpacity={0.8}
+              onPress={() => setShowNotifications(true)}
+            >
               <BellIcon size={20} color="#00386c" />
               {unreadCount > 0 && (
                 <View style={styles.notifBadge}>
@@ -321,6 +347,17 @@ export default function AppScreen() {
                     </View>
                   </View>
 
+                  {report.images && report.images.length > 0 && (
+                    <View style={styles.imageContainer}>
+                      <Image
+                        source={{ uri: report.images[0].image_url }}
+                        style={styles.reportImagePreview}
+                        resizeMode="cover"
+                        onError={() => console.log('Image failed to load:', report.images[0].image_url)}
+                      />
+                    </View>
+                  )}
+
                   <Text style={styles.reportDescription}>{report.description}</Text>
 
                   <View style={styles.reportFooter}>
@@ -355,6 +392,48 @@ export default function AppScreen() {
             <Text style={styles.tabLabel}>Profile</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Notifications Modal */}
+        <Modal
+          visible={showNotifications}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowNotifications(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.notificationPanel}>
+              <View style={styles.notificationPanelHeader}>
+                <Text style={styles.notificationPanelTitle}>Notifications</Text>
+                <TouchableOpacity onPress={() => setShowNotifications(false)} style={styles.closeButton}>
+                  <Text style={styles.closeButtonText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView contentContainerStyle={styles.notificationList} showsVerticalScrollIndicator={false}>
+                {notifications.length === 0 ? (
+                  <Text style={{ textAlign: 'center', color: '#737781', marginTop: 20 }}>No notifications yet.</Text>
+                ) : (
+                  notifications.map((notif) => (
+                    <TouchableOpacity
+                      key={notif.notification_id}
+                      style={[
+                        styles.notificationItem,
+                        notif.status === 'Unread' && styles.notificationItemUnread
+                      ]}
+                      onPress={() => markNotificationRead(notif)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.notificationTitle}>{notif.title}</Text>
+                      <Text style={styles.notificationMessage}>{notif.message}</Text>
+                      <Text style={styles.notificationDate}>{formatDate(notif.created_at)}</Text>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
       </SafeAreaView>
     );
   }
@@ -572,6 +651,87 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#f8f9ff',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  notificationPanel: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+    minHeight: '50%',
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  notificationPanelHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  notificationPanelTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#00386c',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  closeButtonText: {
+    color: '#737781',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  notificationList: {
+    paddingBottom: 20,
+  },
+  notificationItem: {
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#f8f9ff',
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#c2c6d1',
+  },
+  notificationItemUnread: {
+    backgroundColor: '#e5eeff',
+    borderLeftColor: '#00386c',
+  },
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0b1c30',
+    marginBottom: 4,
+  },
+  notificationMessage: {
+    fontSize: 14,
+    color: '#424750',
+    marginBottom: 8,
+  },
+  notificationDate: {
+    fontSize: 12,
+    color: '#737781',
+  },
+  imageContainer: {
+    width: '100%',
+    height: 160,
+    borderRadius: 12,
+    marginBottom: 12,
+    backgroundColor: '#e5eeff',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reportImagePreview: {
+    width: '100%',
+    height: '100%',
   },
   keyboardView: {
     flex: 1,

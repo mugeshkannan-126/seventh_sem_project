@@ -81,7 +81,12 @@ export default function ComplaintScreen() {
       
       if (geocode && geocode.length > 0) {
         const place = geocode[0];
-        const addressStr = [place.name || place.street, place.city || place.subregion].filter(Boolean).join(', ');
+        const streetInfo = [place.streetNumber, place.street].filter(Boolean).join(' ') || place.name;
+        const addressStr = [
+          streetInfo,
+          place.city || place.subregion,
+          place.region || place.country
+        ].filter(Boolean).join(', ');
         setLocation(addressStr);
       } else {
         setLocation(`${loc.coords.latitude.toFixed(4)}, ${loc.coords.longitude.toFixed(4)}`);
