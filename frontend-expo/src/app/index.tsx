@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,7 +9,8 @@ import {
   Platform,
   StatusBar,
   ScrollView,
-  Image,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -27,11 +28,14 @@ import {
   ClockIcon,
   CheckCircleIcon,
   BellIcon,
+  HomeIcon,
+  PlusIcon,
 } from '../components/Icons';
+import { API_BASE, session } from '../services/api';
 
 export default function AppScreen() {
   const router = useRouter();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(session.isLoggedIn());
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -39,49 +43,179 @@ export default function AppScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  
+  // Loading and data states
+  const [loading, setLoading] = useState(false);
+  const [reports, setReports] = useState<any[]>([]);
+  const [fetchingReports, setFetchingReports] = useState(false);
 
-  // Mock list of recent reports for the dashboard
-  const recentReports = [
+  // Default fallback reports if backend is empty
+  const defaultReports = [
     {
-      id: 'CF-9921',
+      complaint_id: 1,
       title: 'Main Street Pothole',
       category: 'Pothole',
-      location: '420 Park Ave South, Manhattan',
+      address: '420 Park Ave South, Manhattan',
       status: 'Under Review',
-      date: 'Today, 10:14 AM',
+      created_at: 'Today, 10:14 AM',
       description: 'Deep pothole in the middle lane causing cars to swerve dangerously.',
       statusColor: '#ff6f32',
     },
     {
-      id: 'CF-9810',
+      complaint_id: 2,
       title: 'Water Leakage',
       category: 'Leakage',
-      location: 'Central Park West & 86th St',
+      address: 'Central Park West & 86th St',
       status: 'Resolved',
-      date: 'Yesterday, 4:30 PM',
+      created_at: 'Yesterday, 4:30 PM',
       description: 'Water main leaking onto the pedestrian walkway near the lake.',
       statusColor: '#00a86b',
     },
-    {
-      id: 'CF-9755',
-      title: 'Broken Streetlight',
-      category: 'Street Light',
-      location: '5th Ave & 23rd St',
-      status: 'Under Review',
-      date: 'July 12, 9:15 PM',
-      description: 'Streetlight pole #12 is completely out, making the crossing pitch dark.',
-      statusColor: '#ff6f32',
-    },
   ];
 
-  const handleAuth = () => {
-    setIsLoggedIn(true);
+  // Fetch complaints from the backend
+  const fetchComplaints = async () => {
+    setFetchingReports(true);
+    try {
+      const response = await fetch(`${API_BASE}/complaints`);
+      const result = await response.json();
+      if (result.success && result.data && result.data.length > 0) {
+        setReports(result.data);
+      } else {
+        setReports(defaultReports);
+      }
+    } catch (error) {
+      console.log('Error fetching complaints from backend:', error);
+      setReports(defaultReports);
+    } finally {
+      setFetchingReports(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchComplaints();
+    }
+  }, [isLoggedIn]);
+
+  // Handle Sign In (calls API /users/login)
+  const handleSignIn = async () => {
+    if (!email || !password) {
+      Alert.alert('Validation Error', 'Please enter your email and password.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/users/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+      
+      const result = await response.json();
+      if (response.ok && result.success) {
+        session.setUser(result.data);
+        setIsLoggedIn(true);
+      } else {
+        Alert.alert('Login Failed', result.message || 'Invalid email or password.');
+      }
+    } catch (error) {
+      console.log('Connection error:', error);
+      Alert.alert('Connection Error', `Failed to connect to backend at ${API_BASE}. Please ensure backend is running.`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle Sign Up (calls API /users/register)
+  const handleSignUp = async () => {
+    if (!name || !email || !password || !confirmPassword) {
+      Alert.alert('Validation Error', 'Please fill in all the fields.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert('Validation Error', 'Passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/users/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          name,
+          password,
+          role: 'Citizen',
+        }),
+      });
+
+      const result = await response.json();
+      if (response.ok && result.success) {
+        Alert.alert('Registration Successful', 'Your account has been created. Please sign in.', [
+          { text: 'OK', onPress: () => setIsSignUp(false) }
+        ]);
+      } else {
+        Alert.alert('Registration Failed', result.message || 'Failed to create account.');
+      }
+    } catch (error) {
+      console.log('Connection error:', error);
+      Alert.alert('Connection Error', `Failed to connect to backend at ${API_BASE}.`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    session.logout();
+    setIsLoggedIn(false);
+    setEmail('');
+    setPassword('');
+  };
+
+  // Helper to determine status color
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'resolved':
+      case 'completed':
+        return '#00a86b';
+      case 'in progress':
+      case 'under review':
+      case 'assigned':
+        return '#ff6f32';
+      case 'pending':
+      default:
+        return '#e8a900';
+    }
+  };
+
+  // Helper to format date
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateStr;
+    }
   };
 
   // -------------------------------------------------------------
   // RENDER LOGGED IN DASHBOARD
   // -------------------------------------------------------------
   if (isLoggedIn) {
+    const user = session.getUser();
     return (
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="dark-content" backgroundColor="#f8f9ff" />
@@ -90,30 +224,42 @@ export default function AppScreen() {
             <GovBuilding size={24} color="#00386c" />
             <Text style={styles.headerTitle}>CivicFlow</Text>
           </View>
-          <TouchableOpacity style={styles.notificationButton} activeOpacity={0.8}>
-            <BellIcon size={20} color="#00386c" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.notificationButton} activeOpacity={0.8}>
+              <BellIcon size={20} color="#00386c" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.profileIconButton} activeOpacity={0.8} onPress={() => router.push('/profile')}>
+              <PersonIcon size={22} color="#00386c" />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <ScrollView contentContainerStyle={styles.dashboardScroll} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          contentContainerStyle={styles.dashboardScroll} 
+          showsVerticalScrollIndicator={false}
+        >
           {/* Welcome Banner */}
           <View style={styles.welcomeBanner}>
-            <Text style={styles.welcomeText}>Hello, Citizen</Text>
+            <Text style={styles.welcomeText}>Hello, {user?.name || 'Citizen'}</Text>
             <Text style={styles.welcomeSubtitle}>Welcome to your civic dashboard. Here is your community overview.</Text>
           </View>
 
           {/* Stats Grid */}
           <View style={styles.statsGrid}>
             <View style={[styles.statCard, { borderLeftColor: '#00386c' }]}>
-              <Text style={styles.statNumber}>3</Text>
+              <Text style={styles.statNumber}>{reports.length}</Text>
               <Text style={styles.statLabel}>Total Filed</Text>
             </View>
             <View style={[styles.statCard, { borderLeftColor: '#ff6f32' }]}>
-              <Text style={[styles.statNumber, { color: '#ff6f32' }]}>2</Text>
-              <Text style={styles.statLabel}>Under Review</Text>
+              <Text style={[styles.statNumber, { color: '#ff6f32' }]}>
+                {reports.filter(r => r.status?.toLowerCase() !== 'resolved').length}
+              </Text>
+              <Text style={styles.statLabel}>Pending / Review</Text>
             </View>
             <View style={[styles.statCard, { borderLeftColor: '#00a86b' }]}>
-              <Text style={[styles.statNumber, { color: '#00a86b' }]}>1</Text>
+              <Text style={[styles.statNumber, { color: '#00a86b' }]}>
+                {reports.filter(r => r.status?.toLowerCase() === 'resolved').length}
+              </Text>
               <Text style={styles.statLabel}>Resolved</Text>
             </View>
           </View>
@@ -134,41 +280,69 @@ export default function AppScreen() {
 
           {/* Recent Reports List */}
           <View style={styles.reportsSection}>
-            <Text style={styles.sectionHeader}>Recent Activity</Text>
-            {recentReports.map((report) => (
-              <View key={report.id} style={styles.reportCard}>
-                <View style={styles.reportCardHeader}>
-                  <View>
-                    <Text style={styles.reportTitle}>{report.title}</Text>
-                    <Text style={styles.reportId}>ID: {report.id}</Text>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionHeader}>Recent Activity</Text>
+              <TouchableOpacity onPress={fetchComplaints}>
+                <Text style={styles.refreshText}>Refresh</Text>
+              </TouchableOpacity>
+            </View>
+
+            {fetchingReports ? (
+              <ActivityIndicator size="large" color="#00386c" style={{ marginTop: 20 }} />
+            ) : (
+              reports.map((report) => (
+                <View key={report.complaint_id} style={styles.reportCard}>
+                  <View style={styles.reportCardHeader}>
+                    <View style={{ flex: 1, marginRight: 12 }}>
+                      <Text style={styles.reportTitle}>{report.title}</Text>
+                      <Text style={styles.reportId}>ID: CF-{report.complaint_id}</Text>
+                    </View>
+                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(report.status) + '15' }]}>
+                      {report.status?.toLowerCase() === 'resolved' ? (
+                        <CheckCircleIcon size={12} color="#00a86b" />
+                      ) : (
+                        <ClockIcon size={12} color={getStatusColor(report.status)} />
+                      )}
+                      <Text style={[styles.statusText, { color: getStatusColor(report.status) }]}>
+                        {report.status || 'Pending'}
+                      </Text>
+                    </View>
                   </View>
-                  <View style={[styles.statusBadge, { backgroundColor: report.statusColor + '15' }]}>
-                    {report.status === 'Resolved' ? (
-                      <CheckCircleIcon size={12} color="#00a86b" />
-                    ) : (
-                      <ClockIcon size={12} color="#ff6f32" />
-                    )}
-                    <Text style={[styles.statusText, { color: report.statusColor }]}>
-                      {report.status}
-                    </Text>
+
+                  <Text style={styles.reportDescription}>{report.description}</Text>
+
+                  <View style={styles.reportFooter}>
+                    <View style={styles.footerItem}>
+                      <MapPinIcon size={14} color="#737781" />
+                      <Text style={styles.footerText} numberOfLines={1}>
+                        {report.address || 'Location Unknown'}
+                      </Text>
+                    </View>
+                    <Text style={styles.reportDate}>{formatDate(report.created_at)}</Text>
                   </View>
                 </View>
-
-                <Text style={styles.reportDescription}>{report.description}</Text>
-
-                <View style={styles.reportFooter}>
-                  <View style={styles.footerItem}>
-                    <MapPinIcon size={14} color="#737781" />
-                    <Text style={styles.footerText} numberOfLines={1}>
-                      {report.location}
-                    </Text>
-                  </View>
-                  <Text style={styles.reportDate}>{report.date}</Text>
-                </View>
-              </View>
-            ))}
+              ))
+            )}
           </View>
         </ScrollView>
+
+        {/* Reusable Bottom Navigation Bar */}
+        <View style={styles.bottomTabBar}>
+          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/')}>
+            <HomeIcon size={24} color="#00386c" />
+            <Text style={[styles.tabLabel, styles.tabLabelActive]}>Home</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/complaint')}>
+            <PlusIcon size={24} color="#737781" />
+            <Text style={styles.tabLabel}>Report</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/profile')}>
+            <PersonIcon size={24} color="#737781" />
+            <Text style={styles.tabLabel}>Profile</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -323,11 +497,22 @@ export default function AppScreen() {
                 )}
 
                 {/* Submit Button */}
-                <TouchableOpacity style={styles.submitButton} onPress={handleAuth} activeOpacity={0.9}>
-                  <Text style={styles.submitButtonText}>
-                    {isSignUp ? 'Create Account' : 'Sign In'}
-                  </Text>
-                  <ArrowRight size={20} color="#ffffff" />
+                <TouchableOpacity
+                  style={[styles.submitButton, loading && { backgroundColor: '#c2c6d1' }]}
+                  onPress={isSignUp ? handleSignUp : handleSignIn}
+                  disabled={loading}
+                  activeOpacity={0.9}
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <>
+                      <Text style={styles.submitButtonText}>
+                        {isSignUp ? 'Create Account' : 'Sign In'}
+                      </Text>
+                      <ArrowRight size={20} color="#ffffff" />
+                    </>
+                  )}
                 </TouchableOpacity>
               </View>
 
@@ -340,11 +525,11 @@ export default function AppScreen() {
 
               {/* Social Buttons */}
               <View style={styles.socialGrid}>
-                <TouchableOpacity style={styles.socialButton} onPress={handleAuth} activeOpacity={0.8}>
+                <TouchableOpacity style={styles.socialButton} onPress={handleSignIn} activeOpacity={0.8}>
                   <GovIdIcon size={18} color="#0b1c30" />
                   <Text style={styles.socialButtonText}>Gov ID</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.socialButton} onPress={handleAuth} activeOpacity={0.8}>
+                <TouchableOpacity style={styles.socialButton} onPress={handleSignIn} activeOpacity={0.8}>
                   <FingerprintIcon size={18} color="#0b1c30" />
                   <Text style={styles.socialButtonText}>Biometrics</Text>
                 </TouchableOpacity>
@@ -652,13 +837,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#00386c',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  logoutButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#ba1a1a',
+  },
+  logoutText: {
+    fontSize: 12,
+    color: '#ba1a1a',
+    fontWeight: '600',
+  },
   notificationButton: {
     padding: 8,
     borderRadius: 20,
     backgroundColor: '#f8f9ff',
-  },
-  notificationDot: {
-    fontSize: 18,
   },
   dashboardScroll: {
     padding: 20,
@@ -740,10 +939,20 @@ const styles = StyleSheet.create({
   reportsSection: {
     gap: 16,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   sectionHeader: {
     fontSize: 18,
     fontWeight: '700',
     color: '#0b1c30',
+  },
+  refreshText: {
+    fontSize: 13,
+    color: '#00386c',
+    fontWeight: '600',
   },
   reportCard: {
     backgroundColor: '#ffffff',
@@ -812,5 +1021,36 @@ const styles = StyleSheet.create({
   reportDate: {
     fontSize: 12,
     color: '#737781',
+  },
+  bottomTabBar: {
+    height: 64,
+    backgroundColor: '#ffffff',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#eff4ff',
+    paddingBottom: Platform.OS === 'ios' ? 12 : 0,
+  },
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    height: '100%',
+  },
+  tabLabel: {
+    fontSize: 11,
+    color: '#737781',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  tabLabelActive: {
+    color: '#00386c',
+    fontWeight: '700',
+  },
+  profileIconButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#f8f9ff',
   },
 });

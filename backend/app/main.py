@@ -72,6 +72,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         errors.append(f"[{loc}]: {err['msg']}")
     
     combined_message = "Validation failed: " + "; ".join(errors)
+    print("VALIDATION ERROR:", combined_message)
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
         content={

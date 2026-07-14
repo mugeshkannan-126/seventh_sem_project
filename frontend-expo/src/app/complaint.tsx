@@ -10,6 +10,7 @@ import {
   StatusBar,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -24,7 +25,11 @@ import {
   LeakageIcon,
   LightbulbIcon,
   TrashIcon,
+  HomeIcon,
+  PersonIcon,
+  PlusIcon,
 } from '../components/Icons';
+import { API_BASE, session } from '../services/api';
 
 export default function ComplaintScreen() {
   const router = useRouter();
@@ -58,20 +63,53 @@ export default function ComplaintScreen() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!description.trim()) {
       Alert.alert('Required Info', 'Please add some description for the issue.');
       return;
     }
+
+    const user = session.getUser();
+    if (!user) {
+      Alert.alert('Authentication Required', 'Please log in to submit a complaint.');
+      router.push('/');
+      return;
+    }
+
     setIsSubmitting(true);
-    setTimeout(() => {
+    try {
+      const response = await fetch(`${API_BASE}/complaints`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: `${category} Issue at ${location.split(',')[0]}`,
+          description: description,
+          category: category,
+          latitude: 40.7128, // Mock coordinate
+          longitude: -74.0060, // Mock coordinate
+          address: location,
+          citizen_id: user.user_id,
+          priority: 'Medium',
+        }),
+      });
+
+      const result = await response.json();
+      if (response.ok && result.success) {
+        setSubmitted(true);
+        setTimeout(() => {
+          router.push('/');
+        }, 1500);
+      } else {
+        Alert.alert('Submission Failed', result.message || 'Failed to submit complaint.');
+      }
+    } catch (error) {
+      console.log('Error submitting complaint:', error);
+      Alert.alert('Connection Error', `Failed to connect to backend at ${API_BASE}.`);
+    } finally {
       setIsSubmitting(false);
-      setSubmitted(true);
-      setTimeout(() => {
-        // Go back to Home dashboard
-        router.push('/');
-      }, 1500);
-    }, 1500);
+    }
   };
 
   return (
@@ -200,10 +238,14 @@ export default function ComplaintScreen() {
                   disabled={isSubmitting}
                   activeOpacity={0.9}
                 >
-                  <Text style={styles.submitButtonText}>
-                    {isSubmitting ? 'Processing...' : 'Submit Report'}
-                  </Text>
-                  {!isSubmitting && <ArrowRight size={18} color="#ffffff" />}
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <>
+                      <Text style={styles.submitButtonText}>Submit Report</Text>
+                      <ArrowRight size={18} color="#ffffff" />
+                    </>
+                  )}
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -219,6 +261,24 @@ export default function ComplaintScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Reusable Bottom Navigation Bar */}
+      <View style={styles.bottomTabBar}>
+        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/')}>
+          <HomeIcon size={24} color="#737781" />
+          <Text style={styles.tabLabel}>Home</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/complaint')}>
+          <PlusIcon size={24} color="#00386c" />
+          <Text style={[styles.tabLabel, styles.tabLabelActive]}>Report</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/profile')}>
+          <PersonIcon size={24} color="#737781" />
+          <Text style={styles.tabLabel}>Profile</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -233,7 +293,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   header: {
     height: 64,
@@ -350,9 +410,6 @@ const styles = StyleSheet.create({
   categoryButtonActive: {
     borderColor: '#ff6f32',
     backgroundColor: '#ff6f32',
-  },
-  categoryIcon: {
-    fontSize: 18,
   },
   categoryLabel: {
     fontSize: 13,
@@ -475,5 +532,34 @@ const styles = StyleSheet.create({
     color: '#737781',
     fontStyle: 'italic',
     marginTop: 20,
+  },
+  bottomTabBar: {
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
+    height: 64,
+    backgroundColor: '#ffffff',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#eff4ff',
+    paddingBottom: Platform.OS === 'ios' ? 12 : 0,
+  },
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    height: '100%',
+  },
+  tabLabel: {
+    fontSize: 11,
+    color: '#737781',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  tabLabelActive: {
+    color: '#00386c',
+    fontWeight: '700',
   },
 });

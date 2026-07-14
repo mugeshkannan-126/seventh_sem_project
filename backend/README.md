@@ -41,6 +41,8 @@ Create and activate a python virtual environment:
 # Windows
 python -m venv venv
 .\venv\Scripts\activate
+#for power shell
+.\venv\bin\Activate.ps1
 
 # macOS / Linux
 python3 -m venv venv
