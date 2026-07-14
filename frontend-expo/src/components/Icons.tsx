@@ -253,3 +253,31 @@ export const SettingsIcon = ({ color = '#737781', size = 20 }: IconProps) => (
     />
   </Svg>
 );
+
+export const GlobeIcon = ({ color = '#737781', size = 20 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx="12" cy="12" r="10" />
+    <Path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    <Path d="M2 12h20" />
+  </Svg>
+);
+
+export const SearchIcon = ({ color = '#737781', size = 20 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx="11" cy="11" r="8" />
+    <Path d="M21 21l-4.35-4.35" />
+  </Svg>
+);
+
+export const FilterIcon = ({ color = '#737781', size = 20 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+  </Svg>
+);
+
+export const CheckAllIcon = ({ color = '#737781', size = 20 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M18 6L7 17l-5-5" />
+    <Path d="M22 10l-5.5 5.5" />
+  </Svg>
+);

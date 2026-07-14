@@ -1,180 +1,488 @@
-import { Image } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
-import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  StatusBar,
+  ActivityIndicator,
+  TextInput,
+  RefreshControl,
+  Image,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import {
+  GovBuilding,
+  HomeIcon,
+  PlusIcon,
+  PersonIcon,
+  MapPinIcon,
+  GlobeIcon,
+  SearchIcon,
+  FilterIcon,
+} from '../components/Icons';
+import { API_BASE } from '../services/api';
 
-import { ExternalLink } from '@/components/external-link';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Collapsible } from '@/components/ui/collapsible';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+export default function ExploreScreen() {
+  const router = useRouter();
+  const [reports, setReports] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [categoryFilter, setCategoryFilter] = useState('All');
 
-export default function TabTwoScreen() {
-  const safeAreaInsets = useSafeAreaInsets();
-  const insets = {
-    ...safeAreaInsets,
-    bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
+  const fetchGlobalReports = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/complaints`);
+      const result = await response.json();
+      if (result.success && result.data) {
+        setReports(result.data);
+      } else {
+        setReports([]);
+      }
+    } catch (error) {
+      console.log('Error fetching global reports:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
-  const theme = useTheme();
 
-  const contentPlatformStyle = Platform.select({
-    android: {
-      paddingTop: insets.top,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-      paddingBottom: insets.bottom,
-    },
-    web: {
-      paddingTop: Spacing.six,
-      paddingBottom: Spacing.four,
-    },
+  useEffect(() => {
+    fetchGlobalReports();
+  }, []);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchGlobalReports();
+  }, []);
+
+  // Helper to determine status color
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'resolved':
+      case 'completed':
+        return '#00a86b';
+      case 'in progress':
+      case 'under review':
+      case 'assigned':
+        return '#ff6f32';
+      case 'pending':
+      default:
+        return '#e8a900';
+    }
+  };
+
+  // Helper to format date
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const filteredReports = reports.filter((report) => {
+    // Search matching
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = 
+      report.title?.toLowerCase().includes(searchLower) ||
+      report.description?.toLowerCase().includes(searchLower) ||
+      report.address?.toLowerCase().includes(searchLower);
+    
+    // Status matching
+    const matchesStatus = statusFilter === 'All' || report.status === statusFilter;
+    
+    // Category matching
+    const matchesCategory = categoryFilter === 'All' || report.category === categoryFilter;
+
+    return matchesSearch && matchesStatus && matchesCategory;
   });
 
+  const statuses = ['All', 'Pending', 'In Progress', 'Resolved'];
+  const categories = ['All', 'Pothole', 'Leakage', 'Street Light', 'Waste'];
+
   return (
-    <ScrollView
-      style={[styles.scrollView, { backgroundColor: theme.background }]}
-      contentInset={insets}
-      contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
-      <ThemedView style={styles.container}>
-        <ThemedView style={styles.titleContainer}>
-          <ThemedText type="subtitle">Explore</ThemedText>
-          <ThemedText style={styles.centerText} themeColor="textSecondary">
-            This starter app includes example{'\n'}code to help you get started.
-          </ThemedText>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#f8f9ff" />
+      <View style={styles.header}>
+        <View style={styles.headerBranding}>
+          <GovBuilding size={24} color="#00386c" />
+          <Text style={styles.headerTitle}>Global Feed</Text>
+        </View>
+      </View>
 
-          <ExternalLink href="https://docs.expo.dev" asChild>
-            <Pressable style={({ pressed }) => pressed && styles.pressed}>
-              <ThemedView type="backgroundElement" style={styles.linkButton}>
-                <ThemedText type="link">Expo documentation</ThemedText>
-                <SymbolView
-                  tintColor={theme.text}
-                  name={{ ios: 'arrow.up.right.square', android: 'link', web: 'link' }}
-                  size={12}
-                />
-              </ThemedView>
-            </Pressable>
-          </ExternalLink>
-        </ThemedView>
+      <View style={styles.searchContainer}>
+        <View style={styles.searchBar}>
+          <SearchIcon size={20} color="#737781" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search reports..."
+            placeholderTextColor="#737781"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+      </View>
 
-        <ThemedView style={styles.sectionsWrapper}>
-          <Collapsible title="File-based routing">
-            <ThemedText type="small">
-              This app has two screens: <ThemedText type="code">src/app/index.tsx</ThemedText> and{' '}
-              <ThemedText type="code">src/app/explore.tsx</ThemedText>
-            </ThemedText>
-            <ThemedText type="small">
-              The layout file in <ThemedText type="code">src/app/_layout.tsx</ThemedText> sets up
-              the tab navigator.
-            </ThemedText>
-            <ExternalLink href="https://docs.expo.dev/router/introduction">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
+      <View style={styles.filtersWrapper}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterScrollContent}>
+          <View style={styles.filterGroup}>
+            <Text style={styles.filterLabel}>Status:</Text>
+            {statuses.map(s => (
+              <TouchableOpacity
+                key={`status-${s}`}
+                style={[styles.filterChip, statusFilter === s && styles.filterChipActive]}
+                onPress={() => setStatusFilter(s)}
+              >
+                <Text style={[styles.filterChipText, statusFilter === s && styles.filterChipTextActive]}>{s}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={styles.filterGroupSeparator} />
+          <View style={styles.filterGroup}>
+            <Text style={styles.filterLabel}>Category:</Text>
+            {categories.map(c => (
+              <TouchableOpacity
+                key={`cat-${c}`}
+                style={[styles.filterChip, categoryFilter === c && styles.filterChipActive]}
+                onPress={() => setCategoryFilter(c)}
+              >
+                <Text style={[styles.filterChipText, categoryFilter === c && styles.filterChipTextActive]}>{c}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
 
-          <Collapsible title="Android, iOS, and web support">
-            <ThemedView type="backgroundElement" style={styles.collapsibleContent}>
-              <ThemedText type="small">
-                You can open this project on Android, iOS, and the web. To open the web version,
-                press <ThemedText type="smallBold">w</ThemedText> in the terminal running this
-                project.
-              </ThemedText>
-              <Image
-                source={require('@/assets/images/tutorial-web.png')}
-                style={styles.imageTutorial}
-              />
-            </ThemedView>
-          </Collapsible>
+      <ScrollView 
+        contentContainerStyle={styles.feedScroll}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#00386c']} />
+        }
+      >
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#00386c" />
+          </View>
+        ) : filteredReports.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyTitle}>No reports found</Text>
+            <Text style={styles.emptyText}>Try adjusting your filters or search.</Text>
+          </View>
+        ) : (
+          filteredReports.map((report) => (
+            <View key={report.complaint_id} style={styles.reportCard}>
+              <View style={styles.reportHeader}>
+                <View style={styles.reportHeaderLeft}>
+                  <Text style={styles.reportCategory}>{report.category || 'General'}</Text>
+                  <Text style={styles.reportDate}>{formatDate(report.created_at)}</Text>
+                </View>
+                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(report.status) + '1A' }]}>
+                  <Text style={[styles.statusText, { color: getStatusColor(report.status) }]}>
+                    {report.status || 'Pending'}
+                  </Text>
+                </View>
+              </View>
 
-          <Collapsible title="Images">
-            <ThemedText type="small">
-              For static images, you can use the <ThemedText type="code">@2x</ThemedText> and{' '}
-              <ThemedText type="code">@3x</ThemedText> suffixes to provide files for different
-              screen densities.
-            </ThemedText>
-            <Image source={require('@/assets/images/react-logo.png')} style={styles.imageReact} />
-            <ExternalLink href="https://reactnative.dev/docs/images">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
+              <Text style={styles.reportTitle}>{report.title}</Text>
+              <Text style={styles.reportDesc} numberOfLines={2}>{report.description}</Text>
 
-          <Collapsible title="Light and dark mode components">
-            <ThemedText type="small">
-              This template has light and dark mode support. The{' '}
-              <ThemedText type="code">useColorScheme()</ThemedText> hook lets you inspect what the
-              user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-            </ThemedText>
-            <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
+              {report.images && report.images.length > 0 && (
+                <View style={styles.imageContainer}>
+                  <Image
+                    source={{ uri: report.images[0].image_url }}
+                    style={styles.reportImagePreview}
+                    resizeMode="cover"
+                    onError={() => console.log('Image failed to load:', report.images[0].image_url)}
+                  />
+                </View>
+              )}
 
-          <Collapsible title="Animations">
-            <ThemedText type="small">
-              This template includes an example of an animated component. The{' '}
-              <ThemedText type="code">src/components/ui/collapsible.tsx</ThemedText> component uses
-              the powerful <ThemedText type="code">react-native-reanimated</ThemedText> library to
-              animate opening this hint.
-            </ThemedText>
-          </Collapsible>
-        </ThemedView>
-        {Platform.OS === 'web' && <WebBadge />}
-      </ThemedView>
-    </ScrollView>
+              <View style={styles.reportFooter}>
+                <View style={styles.locationWrapper}>
+                  <MapPinIcon size={14} color="#737781" />
+                  <Text style={styles.locationText}>{report.address || 'Location not specified'}</Text>
+                </View>
+                <Text style={styles.citizenText}>By Citizen #{report.citizen_id}</Text>
+              </View>
+            </View>
+          ))
+        )}
+      </ScrollView>
+
+      {/* Reusable Bottom Navigation Bar */}
+      <View style={styles.bottomTabBar}>
+        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/')}>
+          <HomeIcon size={24} color="#737781" />
+          <Text style={styles.tabLabel}>Home</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/explore')}>
+          <GlobeIcon size={24} color="#00386c" />
+          <Text style={[styles.tabLabel, styles.tabLabelActive]}>Explore</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/complaint')}>
+          <PlusIcon size={24} color="#737781" />
+          <Text style={styles.tabLabel}>Report</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/profile')}>
+          <PersonIcon size={24} color="#737781" />
+          <Text style={styles.tabLabel}>Profile</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f8f9ff',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5eeff',
+  },
+  headerBranding: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#00386c',
+  },
+  searchContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#ffffff',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f4f8',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#1a1f36',
+  },
+  filtersWrapper: {
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5eeff',
+    paddingBottom: 12,
+  },
+  filterScroll: {
+    paddingHorizontal: 20,
+  },
+  filterScrollContent: {
+    paddingRight: 40, // extra padding for scrolling
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  filterGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  filterLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#737781',
+    marginRight: 4,
+  },
+  filterGroupSeparator: {
+    width: 1,
+    height: 24,
+    backgroundColor: '#e5eeff',
+    marginHorizontal: 16,
+  },
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f4f8',
+  },
+  filterChipActive: {
+    backgroundColor: '#00386c',
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#424750',
+  },
+  filterChipTextActive: {
+    color: '#ffffff',
+  },
+  feedScroll: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 100,
+  },
+  loadingContainer: {
+    marginTop: 40,
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    marginTop: 40,
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1a1f36',
+    marginTop: 12,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#737781',
+    marginTop: 8,
+  },
+  reportCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e5eeff',
+    shadowColor: '#00386c',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  reportHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  reportHeaderLeft: {
     flex: 1,
   },
-  contentContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  reportCategory: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#00386c',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  container: {
-    maxWidth: MaxContentWidth,
-    flexGrow: 1,
+  reportDate: {
+    fontSize: 12,
+    color: '#737781',
+    marginTop: 4,
   },
-  titleContainer: {
-    gap: Spacing.three,
-    alignItems: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.six,
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  centerText: {
-    textAlign: 'center',
+  statusText: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'capitalize',
   },
-  pressed: {
-    opacity: 0.7,
+  reportTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a1f36',
+    marginBottom: 8,
   },
-  linkButton: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.five,
-    justifyContent: 'center',
-    gap: Spacing.one,
-    alignItems: 'center',
+  reportDesc: {
+    fontSize: 14,
+    color: '#424750',
+    lineHeight: 20,
+    marginBottom: 16,
   },
-  sectionsWrapper: {
-    gap: Spacing.five,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-  },
-  collapsibleContent: {
-    alignItems: 'center',
-  },
-  imageTutorial: {
+  imageContainer: {
     width: '100%',
-    aspectRatio: 296 / 171,
-    borderRadius: Spacing.three,
-    marginTop: Spacing.two,
+    height: 160,
+    borderRadius: 12,
+    marginBottom: 12,
+    backgroundColor: '#e5eeff',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  imageReact: {
-    width: 100,
-    height: 100,
-    alignSelf: 'center',
+  reportImagePreview: {
+    width: '100%',
+    height: '100%',
+  },
+  reportFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: '#f0f4f8',
+    paddingTop: 12,
+  },
+  locationWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  locationText: {
+    fontSize: 13,
+    color: '#737781',
+    marginLeft: 4,
+    flexShrink: 1,
+  },
+  citizenText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#00386c',
+  },
+  bottomTabBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+    backgroundColor: '#ffffff',
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: '#e5eeff',
+    paddingBottom: 8,
+  },
+  tabItem: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 8,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#737781',
+    marginTop: 4,
+  },
+  tabLabelActive: {
+    color: '#00386c',
   },
 });

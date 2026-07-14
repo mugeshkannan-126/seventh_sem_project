@@ -17,6 +17,7 @@ import {
   HomeIcon,
   PlusIcon,
   ArrowRight,
+  GlobeIcon,
 } from '../components/Icons';
 import { session } from '../services/api';
 
@@ -130,6 +131,11 @@ export default function ProfileScreen() {
         <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/')}>
           <HomeIcon size={24} color="#737781" />
           <Text style={styles.tabLabel}>Home</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/explore')}>
+          <GlobeIcon size={24} color="#737781" />
+          <Text style={styles.tabLabel}>Explore</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/complaint')}>

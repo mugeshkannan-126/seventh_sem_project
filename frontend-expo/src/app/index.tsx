@@ -32,6 +32,7 @@ import {
   BellIcon,
   HomeIcon,
   PlusIcon,
+  GlobeIcon,
 } from '../components/Icons';
 import { API_BASE, session } from '../services/api';
 
@@ -116,6 +117,27 @@ export default function AppScreen() {
       }
     } catch (error) {
       console.log('Error marking notification read:', error);
+    }
+  };
+
+  const markAllNotificationsRead = async () => {
+    const unread = notifications.filter(n => n.status === 'Unread');
+    if (unread.length === 0) return;
+
+    try {
+      await Promise.all(
+        unread.map(n => 
+          fetch(`${API_BASE}/notifications/${n.notification_id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'Read' })
+          })
+        )
+      );
+      setNotifications(prev => prev.map(n => ({ ...n, status: 'Read' })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.log('Error marking all notifications read:', error);
     }
   };
 
@@ -382,6 +404,11 @@ export default function AppScreen() {
             <Text style={[styles.tabLabel, styles.tabLabelActive]}>Home</Text>
           </TouchableOpacity>
 
+          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/explore')}>
+            <GlobeIcon size={24} color="#737781" />
+            <Text style={styles.tabLabel}>Explore</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/complaint')}>
             <PlusIcon size={24} color="#737781" />
             <Text style={styles.tabLabel}>Report</Text>
@@ -400,13 +427,25 @@ export default function AppScreen() {
           animationType="slide"
           onRequestClose={() => setShowNotifications(false)}
         >
-          <View style={styles.modalOverlay}>
-            <View style={styles.notificationPanel}>
+          <TouchableOpacity 
+            style={styles.modalOverlay} 
+            activeOpacity={1} 
+            onPressOut={() => setShowNotifications(false)}
+          >
+            <View style={styles.notificationPanel} onStartShouldSetResponder={() => true}>
+              <View style={styles.dragIndicator} />
               <View style={styles.notificationPanelHeader}>
                 <Text style={styles.notificationPanelTitle}>Notifications</Text>
-                <TouchableOpacity onPress={() => setShowNotifications(false)} style={styles.closeButton}>
-                  <Text style={styles.closeButtonText}>Close</Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {unreadCount > 0 && (
+                    <TouchableOpacity onPress={markAllNotificationsRead} style={styles.closeButton}>
+                      <Text style={[styles.closeButtonText, { color: '#00386c' }]}>Mark all as read</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity onPress={() => setShowNotifications(false)} style={styles.closeButton}>
+                    <Text style={styles.closeButtonText}>Close</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
               
               <ScrollView contentContainerStyle={styles.notificationList} showsVerticalScrollIndicator={false}>
@@ -431,7 +470,7 @@ export default function AppScreen() {
                 )}
               </ScrollView>
             </View>
-          </View>
+          </TouchableOpacity>
         </Modal>
 
       </SafeAreaView>
@@ -654,21 +693,31 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'flex-end',
   },
   notificationPanel: {
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '80%',
+    maxHeight: '85%',
     minHeight: '50%',
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowRadius: 16,
+    elevation: 20,
+  },
+  dragIndicator: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#c2c6d1',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
   },
   notificationPanelHeader: {
     flexDirection: 'row',

@@ -32,6 +32,7 @@ import {
   HomeIcon,
   PersonIcon,
   PlusIcon,
+  GlobeIcon,
 } from '../components/Icons';
 import { API_BASE, session } from '../services/api';
 
@@ -437,6 +438,11 @@ export default function ComplaintScreen() {
         <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/')}>
           <HomeIcon size={24} color="#737781" />
           <Text style={styles.tabLabel}>Home</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/explore')}>
+          <GlobeIcon size={24} color="#737781" />
+          <Text style={styles.tabLabel}>Explore</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/complaint')}>
