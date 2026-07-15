@@ -11,6 +11,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -55,9 +56,13 @@ export default function ComplaintScreen() {
   const [submitted, setSubmitted] = useState(false);
   const [submittedId, setSubmittedId] = useState<number | null>(null);
 
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [customCategory, setCustomCategory] = useState('');
+
   // Initialize with empty location until fetched
   React.useEffect(() => {
     setLocation('');
+    fetchLocation();
   }, []);
 
   const fetchLocation = async () => {
@@ -198,6 +203,7 @@ export default function ComplaintScreen() {
     { name: 'Leakage' },
     { name: 'Street Light' },
     { name: 'Waste' },
+    { name: 'Other' },
   ];
 
   const getCategoryIcon = (name: string, isActive: boolean) => {
@@ -211,6 +217,8 @@ export default function ComplaintScreen() {
         return <LightbulbIcon size={20} color={iconColor} />;
       case 'Waste':
         return <TrashIcon size={20} color={iconColor} />;
+      case 'Other':
+        return <InfoIcon size={20} color={iconColor} />;
       default:
         return null;
     }
@@ -237,9 +245,9 @@ export default function ComplaintScreen() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          title: `${category} Issue at ${location.split(',')[0] || 'Unknown location'}`,
+          title: `${category === 'Other' ? customCategory || 'Other' : category} Issue at ${location.split(',')[0] || 'Unknown location'}`,
           description: description,
-          category: category,
+          category: category === 'Other' ? customCategory || 'Other' : category,
           latitude: latitude || 0,
           longitude: longitude || 0,
           address: location,
@@ -310,52 +318,82 @@ export default function ComplaintScreen() {
                 <View style={styles.inputContainer}>
                   <Text style={styles.fieldLabel}>UPLOAD PHOTO</Text>
                   <TouchableOpacity
-                    style={[styles.uploadBox, photoUploaded && styles.uploadBoxActive]}
+                    style={[styles.uploadBox, photoUploaded && styles.uploadBoxActive, photoUploaded && { padding: 0, overflow: 'hidden' }]}
                     activeOpacity={0.8}
                     onPress={pickImage}
                     disabled={isUploadingImage}
                   >
                     {isUploadingImage ? (
                       <ActivityIndicator size="large" color="#00386c" />
+                    ) : photoUploaded && uploadedImageUrl ? (
+                      <>
+                        <Image 
+                          source={{ uri: uploadedImageUrl }} 
+                          style={{ width: '100%', height: '100%' }} 
+                          resizeMode="cover" 
+                        />
+                        <View style={{ position: 'absolute', backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 }}>
+                          <Text style={{ color: 'white', fontSize: 12, fontWeight: '600' }}>Tap to change photo</Text>
+                        </View>
+                      </>
                     ) : (
                       <>
-                        <CameraIcon size={32} color={photoUploaded ? '#00386c' : '#737781'} />
-                        <Text style={[styles.uploadText, photoUploaded && styles.uploadTextActive]}>
-                          {photoUploaded
-                            ? 'Photo Uploaded Successfully!'
-                            : 'Tap to capture or upload from gallery'}
+                        <CameraIcon size={32} color="#737781" />
+                        <Text style={styles.uploadText}>
+                          Tap to capture or upload from gallery
                         </Text>
-                        {photoUploaded && (
-                          <Text style={styles.photoFilename}>{imageFileName}</Text>
-                        )}
                       </>
                     )}
                   </TouchableOpacity>
+                  {photoUploaded && (
+                    <Text style={[styles.photoFilename, { marginTop: 4, textAlign: 'center' }]}>{imageFileName}</Text>
+                  )}
                 </View>
 
                 {/* Category Selection */}
                 <View style={styles.inputContainer}>
                   <Text style={styles.fieldLabel}>SELECT CATEGORY</Text>
-                  <View style={styles.categoryGrid}>
-                    {categories.map((cat) => {
-                      const isActive = category === cat.name;
-                      return (
+                  <TouchableOpacity
+                    style={styles.dropdownHeader}
+                    activeOpacity={0.8}
+                    onPress={() => setIsDropdownOpen(!isDropdownOpen)}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      {getCategoryIcon(category, false)}
+                      <Text style={styles.dropdownHeaderText}>{category}</Text>
+                    </View>
+                    <Text style={{ color: '#00386c', fontWeight: '600' }}>{isDropdownOpen ? '▲' : '▼'}</Text>
+                  </TouchableOpacity>
+
+                  {isDropdownOpen && (
+                    <View style={styles.dropdownList}>
+                      {categories.map((cat) => (
                         <TouchableOpacity
                           key={cat.name}
-                          style={[styles.categoryButton, isActive && styles.categoryButtonActive]}
-                          activeOpacity={0.8}
-                          onPress={() => setCategory(cat.name)}
+                          style={styles.dropdownItem}
+                          onPress={() => {
+                            setCategory(cat.name);
+                            setIsDropdownOpen(false);
+                          }}
                         >
-                          <View style={{ marginRight: 6 }}>
-                            {getCategoryIcon(cat.name, isActive)}
+                          <View style={{ marginRight: 8 }}>
+                            {getCategoryIcon(cat.name, false)}
                           </View>
-                          <Text style={[styles.categoryLabel, isActive && styles.categoryLabelActive]}>
-                            {cat.name}
-                          </Text>
+                          <Text style={styles.dropdownItemText}>{cat.name}</Text>
                         </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {category === 'Other' && (
+                    <TextInput
+                      style={[styles.locationInput, { height: 48, marginTop: 8, marginLeft: 0, borderWidth: 1, borderColor: '#c2c6d1', borderRadius: 12, paddingHorizontal: 12 }]}
+                      value={customCategory}
+                      onChangeText={setCustomCategory}
+                      placeholder="Enter custom category"
+                      placeholderTextColor="#737781"
+                    />
+                  )}
                 </View>
 
                 {/* Pinpoint Location */}
@@ -565,35 +603,41 @@ const styles = StyleSheet.create({
     color: '#737781',
     fontStyle: 'italic',
   },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  categoryButton: {
-    flex: 1,
-    minWidth: '45%',
+  dropdownHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    backgroundColor: '#f8f9ff',
     borderWidth: 1,
     borderColor: '#c2c6d1',
     borderRadius: 12,
+    paddingHorizontal: 12,
     height: 48,
+  },
+  dropdownHeaderText: {
+    fontSize: 14,
+    color: '#0b1c30',
+    fontWeight: '500',
+  },
+  dropdownList: {
     backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#c2c6d1',
+    borderRadius: 12,
+    marginTop: 4,
+    overflow: 'hidden',
   },
-  categoryButtonActive: {
-    borderColor: '#ff6f32',
-    backgroundColor: '#ff6f32',
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    height: 48,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eff4ff',
   },
-  categoryLabel: {
-    fontSize: 13,
-    fontWeight: '600',
+  dropdownItemText: {
+    fontSize: 14,
     color: '#424750',
-  },
-  categoryLabelActive: {
-    color: '#ffffff',
   },
   locationWrapper: {
     flexDirection: 'row',

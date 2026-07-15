@@ -22,8 +22,9 @@ import {
   GlobeIcon,
   SearchIcon,
   FilterIcon,
+  ArrowUpIcon,
 } from '../components/Icons';
-import { API_BASE } from '../services/api';
+import { API_BASE, session } from '../services/api';
 
 export default function ExploreScreen() {
   const router = useRouter();
@@ -33,10 +34,41 @@ export default function ExploreScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [categoryFilter, setCategoryFilter] = useState('All');
+  const [sortBy, setSortBy] = useState('Newest');
+
+  const handleUpvote = async (reportId: number) => {
+    const currentUser = session.getUser();
+    if (!currentUser) return;
+    
+    // Find if already upvoted to toggle
+    const report = reports.find(r => r.complaint_id === reportId);
+    if (!report) return;
+    
+    const isUpvoted = report.has_upvoted;
+    const upvoteChange = isUpvoted ? -1 : 1;
+
+    try {
+      // Optimistic update
+      setReports(prev => prev.map(r => r.complaint_id === reportId ? { ...r, upvotes: Math.max(0, (r.upvotes || 0) + upvoteChange), has_upvoted: !isUpvoted } : r));
+      const response = await fetch(`${API_BASE}/complaints/${reportId}/upvote?user_id=${currentUser.user_id}`, {
+        method: 'POST'
+      });
+      if (!response.ok) {
+        // Revert on failure
+        setReports(prev => prev.map(r => r.complaint_id === reportId ? { ...r, upvotes: Math.max(0, (r.upvotes || 0) - upvoteChange), has_upvoted: isUpvoted } : r));
+      }
+    } catch (error) {
+      console.log('Error upvoting:', error);
+      // Revert on failure
+      setReports(prev => prev.map(r => r.complaint_id === reportId ? { ...r, upvotes: Math.max(0, (r.upvotes || 0) - upvoteChange), has_upvoted: isUpvoted } : r));
+    }
+  };
 
   const fetchGlobalReports = async () => {
     try {
-      const response = await fetch(`${API_BASE}/complaints`);
+      const currentUser = session.getUser();
+      const url = currentUser ? `${API_BASE}/complaints?user_id=${currentUser.user_id}` : `${API_BASE}/complaints`;
+      const response = await fetch(url);
       const result = await response.json();
       if (result.success && result.data) {
         setReports(result.data);
@@ -93,7 +125,7 @@ export default function ExploreScreen() {
     }
   };
 
-  const filteredReports = reports.filter((report) => {
+  let filteredReports = reports.filter((report) => {
     // Search matching
     const searchLower = searchQuery.toLowerCase();
     const matchesSearch = 
@@ -109,6 +141,13 @@ export default function ExploreScreen() {
 
     return matchesSearch && matchesStatus && matchesCategory;
   });
+
+  if (sortBy === 'Most Upvotes') {
+    filteredReports.sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0));
+  } else {
+    // Newest
+    filteredReports.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }
 
   const statuses = ['All', 'Pending', 'In Progress', 'Resolved'];
   const categories = ['All', 'Pothole', 'Leakage', 'Street Light', 'Waste'];
@@ -163,6 +202,19 @@ export default function ExploreScreen() {
               </TouchableOpacity>
             ))}
           </View>
+          <View style={styles.filterGroupSeparator} />
+          <View style={styles.filterGroup}>
+            <Text style={styles.filterLabel}>Sort By:</Text>
+            {['Newest', 'Most Upvotes'].map(s => (
+              <TouchableOpacity
+                key={`sort-${s}`}
+                style={[styles.filterChip, sortBy === s && styles.filterChipActive]}
+                onPress={() => setSortBy(s)}
+              >
+                <Text style={[styles.filterChipText, sortBy === s && styles.filterChipTextActive]}>{s}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </ScrollView>
       </View>
 
@@ -213,9 +265,19 @@ export default function ExploreScreen() {
               <View style={styles.reportFooter}>
                 <View style={styles.locationWrapper}>
                   <MapPinIcon size={14} color="#737781" />
-                  <Text style={styles.locationText}>{report.address || 'Location not specified'}</Text>
+                  <Text style={styles.locationText} numberOfLines={1}>{report.address || 'Location not specified'}</Text>
                 </View>
-                <Text style={styles.citizenText}>By Citizen #{report.citizen_id}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <Text style={styles.citizenText}>Citizen #{report.citizen_id}</Text>
+                  <TouchableOpacity 
+                    style={[styles.upvoteButton, report.has_upvoted && styles.upvoteButtonActive]} 
+                    onPress={() => handleUpvote(report.complaint_id)}
+                    activeOpacity={0.7}
+                  >
+                    <ArrowUpIcon size={16} color={report.has_upvoted ? "#ffffff" : "#00386c"} />
+                    <Text style={[styles.upvoteText, report.has_upvoted && styles.upvoteTextActive]}>{report.upvotes || 0}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           ))
@@ -457,6 +519,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#00386c',
+  },
+  upvoteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#f0f4f8',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  upvoteButtonActive: {
+    backgroundColor: '#00386c',
+  },
+  upvoteText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#00386c',
+  },
+  upvoteTextActive: {
+    color: '#ffffff',
   },
   bottomTabBar: {
     position: 'absolute',

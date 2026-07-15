@@ -1,7 +1,8 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
+from app.models.complaint import ComplaintUpvote
 from app.schemas.complaint import ComplaintCreate, ComplaintUpdate, ComplaintResponse
 from app.schemas.response import StandardResponse
 from app.services import complaint_service, user_service, department_service
@@ -40,11 +41,18 @@ def create_complaint(complaint_in: ComplaintCreate, db: Session = Depends(get_db
     )
 
 @router.get("", response_model=StandardResponse[List[ComplaintResponse]])
-def get_complaints(db: Session = Depends(get_db)):
+def get_complaints(user_id: Optional[int] = None, db: Session = Depends(get_db)):
     """
     List all complaints.
     """
     complaints = complaint_service.get_complaints(db)
+    
+    # Check upvotes if user_id is provided
+    if user_id is not None:
+        upvoted_ids = {u.complaint_id for u in db.query(ComplaintUpvote.complaint_id).filter(ComplaintUpvote.user_id == user_id).all()}
+        for c in complaints:
+            setattr(c, 'has_upvoted', c.complaint_id in upvoted_ids)
+            
     return StandardResponse(
         success=True,
         message="Complaints retrieved successfully.",
@@ -152,6 +160,49 @@ def update_complaint(id: int, complaint_in: ComplaintUpdate, db: Session = Depen
         message="Complaint updated successfully.",
         data=updated_complaint
     )
+
+@router.post("/{id}/upvote", response_model=StandardResponse[ComplaintResponse])
+def upvote_complaint(id: int, user_id: int, db: Session = Depends(get_db)):
+    """
+    Upvote or un-upvote a specific complaint by ID for a user.
+    """
+    db_complaint = complaint_service.get_complaint_by_id(db, id)
+    if not db_complaint:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Complaint with ID {id} not found."
+        )
+        
+    existing_upvote = db.query(ComplaintUpvote).filter(
+        ComplaintUpvote.complaint_id == id,
+        ComplaintUpvote.user_id == user_id
+    ).first()
+    
+    if existing_upvote:
+        # Remove upvote
+        db.delete(existing_upvote)
+        db_complaint.upvotes = max(0, (db_complaint.upvotes or 0) - 1)
+        db.commit()
+        db.refresh(db_complaint)
+        setattr(db_complaint, 'has_upvoted', False)
+        return StandardResponse(
+            success=True,
+            message="Upvote removed.",
+            data=db_complaint
+        )
+    else:
+        # Add upvote
+        new_upvote = ComplaintUpvote(complaint_id=id, user_id=user_id)
+        db.add(new_upvote)
+        db_complaint.upvotes = (db_complaint.upvotes or 0) + 1
+        db.commit()
+        db.refresh(db_complaint)
+        setattr(db_complaint, 'has_upvoted', True)
+        return StandardResponse(
+            success=True,
+            message="Complaint upvoted successfully.",
+            data=db_complaint
+        )
 
 @router.delete("/{id}", response_model=StandardResponse[dict])
 def delete_complaint(id: int, db: Session = Depends(get_db)):

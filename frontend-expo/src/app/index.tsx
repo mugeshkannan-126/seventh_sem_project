@@ -33,6 +33,8 @@ import {
   HomeIcon,
   PlusIcon,
   GlobeIcon,
+  TrashIcon,
+  EditIcon,
 } from '../components/Icons';
 import { API_BASE, session } from '../services/api';
 
@@ -54,6 +56,57 @@ export default function AppScreen() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [editingReport, setEditingReport] = useState<any>(null);
+  const [editDescription, setEditDescription] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const handleDeleteReport = (reportId: number) => {
+    Alert.alert('Delete Report', 'Are you sure you want to delete this report?', [
+      { text: 'Cancel', style: 'cancel' },
+      { 
+        text: 'Delete', 
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const response = await fetch(`${API_BASE}/complaints/${reportId}`, {
+              method: 'DELETE'
+            });
+            if (response.ok) {
+              fetchComplaints();
+            } else {
+              Alert.alert('Error', 'Failed to delete report.');
+            }
+          } catch (error) {
+            console.log('Error deleting report:', error);
+            Alert.alert('Error', 'Failed to connect to backend.');
+          }
+        }
+      }
+    ]);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingReport) return;
+    setIsUpdating(true);
+    try {
+      const response = await fetch(`${API_BASE}/complaints/${editingReport.complaint_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: editDescription })
+      });
+      if (response.ok) {
+        setEditingReport(null);
+        fetchComplaints();
+      } else {
+        Alert.alert('Error', 'Failed to update report.');
+      }
+    } catch (error) {
+      console.log('Error updating report:', error);
+      Alert.alert('Error', 'Failed to connect to backend.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   // Fetch complaints for the logged-in citizen from the backend
   const fetchComplaints = async () => {
@@ -357,15 +410,25 @@ export default function AppScreen() {
                       <Text style={styles.reportTitle}>{report.title}</Text>
                       <Text style={styles.reportId}>ID: CF-{report.complaint_id}</Text>
                     </View>
-                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(report.status) + '15' }]}>
-                      {report.status?.toLowerCase() === 'resolved' ? (
-                        <CheckCircleIcon size={12} color="#00a86b" />
-                      ) : (
-                        <ClockIcon size={12} color={getStatusColor(report.status)} />
-                      )}
-                      <Text style={[styles.statusText, { color: getStatusColor(report.status) }]}>
-                        {report.status || 'Submitted'}
-                      </Text>
+                    <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(report.status) + '15' }]}>
+                        {report.status?.toLowerCase() === 'resolved' ? (
+                          <CheckCircleIcon size={12} color="#00a86b" />
+                        ) : (
+                          <ClockIcon size={12} color={getStatusColor(report.status)} />
+                        )}
+                        <Text style={[styles.statusText, { color: getStatusColor(report.status) }]}>
+                          {report.status || 'Submitted'}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
+                        <TouchableOpacity onPress={() => { setEditingReport(report); setEditDescription(report.description); }} hitSlop={{top:10,bottom:10,left:10,right:10}}>
+                          <EditIcon size={18} color="#00386c" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleDeleteReport(report.complaint_id)} hitSlop={{top:10,bottom:10,left:10,right:10}}>
+                          <TrashIcon size={18} color="#ba1a1a" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
 
@@ -419,6 +482,48 @@ export default function AppScreen() {
             <Text style={styles.tabLabel}>Profile</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Edit Description Modal */}
+        <Modal
+          visible={!!editingReport}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setEditingReport(null)}
+        >
+          <View style={styles.editModalOverlay}>
+            <View style={styles.editModalContent}>
+              <Text style={styles.editModalTitle}>Edit Description</Text>
+              <TextInput
+                style={styles.editModalInput}
+                multiline
+                numberOfLines={4}
+                value={editDescription}
+                onChangeText={setEditDescription}
+                placeholder="Enter new description"
+              />
+              <View style={styles.editModalActions}>
+                <TouchableOpacity 
+                  style={[styles.editModalButton, styles.editModalCancel]} 
+                  onPress={() => setEditingReport(null)}
+                  disabled={isUpdating}
+                >
+                  <Text style={styles.editModalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.editModalButton, styles.editModalSave]} 
+                  onPress={handleSaveEdit}
+                  disabled={isUpdating}
+                >
+                  {isUpdating ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.editModalSaveText}>Save</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* Notifications Modal */}
         <Modal
@@ -695,6 +800,60 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'flex-end',
+  },
+  editModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  editModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+  },
+  editModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#00386c',
+    marginBottom: 16,
+  },
+  editModalInput: {
+    borderWidth: 1,
+    borderColor: '#c2c6d1',
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    color: '#0b1c30',
+    height: 100,
+    textAlignVertical: 'top',
+    marginBottom: 20,
+  },
+  editModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  editModalButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  editModalCancel: {
+    backgroundColor: '#f0f4f8',
+  },
+  editModalSave: {
+    backgroundColor: '#00386c',
+  },
+  editModalCancelText: {
+    color: '#424750',
+    fontWeight: '600',
+  },
+  editModalSaveText: {
+    color: '#ffffff',
+    fontWeight: '600',
   },
   notificationPanel: {
     backgroundColor: '#ffffff',

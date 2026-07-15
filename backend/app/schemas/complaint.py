@@ -12,6 +12,8 @@ class ComplaintBase(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
     address: str | None = None
+    upvotes: int = 0
+    has_upvoted: bool = False
 
 class ComplaintCreate(ComplaintBase):
     citizen_id: int

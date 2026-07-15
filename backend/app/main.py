@@ -108,3 +108,22 @@ def read_root():
             "users": "/users"
         }
     }
+
+from sqlalchemy import text
+from app.database import engine
+
+@app.get("/setup-db")
+def setup_db():
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE complaints ADD COLUMN IF NOT EXISTS upvotes BIGINT DEFAULT 0"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS complaint_upvotes (
+                id SERIAL PRIMARY KEY,
+                complaint_id BIGINT NOT NULL REFERENCES complaints(complaint_id) ON DELETE CASCADE,
+                user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(complaint_id, user_id)
+            )
+        """))
+    return {"message": "done"}
+

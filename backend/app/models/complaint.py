@@ -27,6 +27,13 @@ class ComplaintStatusEnum(str, enum.Enum):
     RESOLVED = "Resolved"
     CLOSED = "Closed"
 
+class ComplaintUpvote(Base):
+    __tablename__ = "complaint_upvotes"
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    complaint_id: Mapped[int] = mapped_column(ForeignKey("complaints.complaint_id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, default=func.now(), nullable=True)
+
 class Complaint(Base):
     __tablename__ = "complaints"
 
@@ -47,6 +54,7 @@ class Complaint(Base):
         Enum(ComplaintStatusEnum, name="complaint_status", native_enum=True, values_callable=lambda x: [e.value for e in x]),
         nullable=True
     )
+    upvotes: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=func.now(), nullable=True)
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime, default=func.now(), onupdate=func.now(), nullable=True
