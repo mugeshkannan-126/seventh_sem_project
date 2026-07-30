@@ -1,0 +1,238 @@
+import type {
+  Complaint,
+  FeedPost,
+  User,
+  MapMarker,
+  EmergencyContact,
+} from '@/types';
+
+// ─── Mock User ────────────────────────────────────────────────────────────────
+export const MOCK_USER: User = {
+  id: 'user_001',
+  name: 'Alex Johnson',
+  email: 'alex.johnson@email.com',
+  phone: '+1 (555) 234-5678',
+  avatar: 'https://i.pravatar.cc/150?img=33',
+  ward: 'Ward 7',
+  city: 'Downtown, City',
+  joinedAt: '2024-03-15T00:00:00Z',
+  civicScore: 847,
+  notificationsEnabled: true,
+  stats: {
+    totalReports: 12,
+    resolved: 8,
+    pending: 4,
+    communityPoints: 2340,
+    rank: 142,
+  },
+  badges: [
+    { id: 'b1', name: 'First Report', description: 'Filed your first complaint', icon: 'flag', color: '#004ac6', earnedAt: '2024-03-20T00:00:00Z' },
+    { id: 'b2', name: 'Quick Reporter', description: '5 reports in a month', icon: 'bolt', color: '#006e2f', earnedAt: '2024-04-10T00:00:00Z' },
+    { id: 'b3', name: 'Community Voice', description: '10 upvotes received', icon: 'thumb_up', color: '#784b00', earnedAt: '2024-05-01T00:00:00Z' },
+    { id: 'b4', name: 'Verified Citizen', description: 'Phone and email verified', icon: 'verified', color: '#2563eb', earnedAt: '2024-03-16T00:00:00Z' },
+  ],
+};
+
+// ─── Mock Complaints ──────────────────────────────────────────────────────────
+export const MOCK_COMPLAINTS: Complaint[] = [
+  {
+    id: 'c001',
+    title: 'Large Pothole on 5th Avenue',
+    description: 'There is a very large pothole near the traffic signal at 5th Ave & Main St. It is causing damage to vehicles.',
+    category: 'pothole',
+    status: 'in_progress',
+    priority: 'high',
+    location: { latitude: 41.8781, longitude: -87.6298 },
+    address: '5th Avenue & Main St, Downtown',
+    images: ['https://images.unsplash.com/photo-1534536281715-e28d76689b4d?w=800'],
+    reportedBy: 'user_001',
+    assignedTo: {
+      id: 'off_01',
+      name: 'David Chen',
+      title: 'Road Maintenance Lead',
+      department: 'Public Works',
+      avatar: 'https://i.pravatar.cc/150?img=11',
+      phone: '+1 (555) 100-2000',
+    },
+    department: 'Public Works',
+    createdAt: '2025-07-10T09:30:00Z',
+    updatedAt: '2025-07-14T11:00:00Z',
+    upvotes: 23,
+    hasUserUpvoted: true,
+    timeline: [
+      { id: 't1', type: 'submitted', label: 'Submitted', description: 'Report received by the system.', timestamp: '2025-07-10T09:30:00Z', actor: 'Alex Johnson', isCompleted: true, isActive: false },
+      { id: 't2', type: 'verified', label: 'AI Verified', description: 'AI classified issue as Pothole (96% confidence).', timestamp: '2025-07-10T09:31:00Z', isCompleted: true, isActive: false },
+      { id: 't3', type: 'assigned', label: 'Assigned', description: 'Assigned to Public Works department.', timestamp: '2025-07-11T08:00:00Z', actor: 'System', isCompleted: true, isActive: false },
+      { id: 't4', type: 'in_progress', label: 'In Progress', description: 'Repair crew dispatched.', timestamp: '2025-07-14T11:00:00Z', actor: 'David Chen', isCompleted: false, isActive: true },
+      { id: 't5', type: 'resolved', label: 'Resolved', description: 'Awaiting completion.', timestamp: '', isCompleted: false, isActive: false },
+    ],
+    comments: [
+      { id: 'cm1', author: 'David Chen', isOfficial: true, content: 'Repair crew has been dispatched. ETA 2 days.', createdAt: '2025-07-14T11:00:00Z', likes: 5 },
+    ],
+    aiAnalysis: {
+      detectedCategory: 'pothole',
+      confidence: 0.96,
+      alternativeCategories: [{ category: 'other', confidence: 0.04 }],
+      detectedSeverity: 'high',
+      estimatedResolutionDays: 3,
+      tags: ['road', 'damage', 'vehicle-hazard'],
+      summary: 'A large pothole approximately 30cm in diameter detected on the road surface.',
+      priorityScore: 87,
+    },
+  },
+  {
+    id: 'c002',
+    title: 'Street Light Not Working',
+    description: 'The street light on Oak Street has been out for a week, making it dangerous at night.',
+    category: 'street_light',
+    status: 'resolved',
+    priority: 'medium',
+    location: { latitude: 41.882, longitude: -87.632 },
+    address: 'Oak Street, Near Park Entrance',
+    images: ['https://images.unsplash.com/photo-1567954970774-58d6aa6c50dc?w=800'],
+    reportedBy: 'user_001',
+    department: 'Electrical Maintenance',
+    createdAt: '2025-07-05T14:00:00Z',
+    updatedAt: '2025-07-12T16:00:00Z',
+    resolvedAt: '2025-07-12T16:00:00Z',
+    upvotes: 18,
+    hasUserUpvoted: false,
+    timeline: [
+      { id: 't1', type: 'submitted', label: 'Submitted', description: 'Report received.', timestamp: '2025-07-05T14:00:00Z', isCompleted: true, isActive: false },
+      { id: 't2', type: 'verified', label: 'AI Verified', description: 'Confirmed street light outage.', timestamp: '2025-07-05T14:02:00Z', isCompleted: true, isActive: false },
+      { id: 't3', type: 'resolved', label: 'Resolved', description: 'Street light replaced.', timestamp: '2025-07-12T16:00:00Z', isCompleted: true, isActive: false },
+    ],
+    comments: [],
+    resolutionNote: 'Street light bulb replaced with LED unit. Issue resolved.',
+    beforeImage: 'https://images.unsplash.com/photo-1567954970774-58d6aa6c50dc?w=400',
+    afterImage: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400',
+    communityRating: 4.5,
+  },
+  {
+    id: 'c003',
+    title: 'Garbage Overflow at Central Square',
+    description: 'The bins at Central Square are overflowing and not collected for 3 days.',
+    category: 'garbage',
+    status: 'pending',
+    priority: 'medium',
+    location: { latitude: 41.875, longitude: -87.625 },
+    address: 'Central Square Park, Main Entrance',
+    images: ['https://images.unsplash.com/photo-1495908333425-29a1e0918c5f?w=800'],
+    reportedBy: 'user_001',
+    createdAt: '2025-07-13T08:00:00Z',
+    updatedAt: '2025-07-13T08:00:00Z',
+    upvotes: 7,
+    hasUserUpvoted: false,
+    timeline: [
+      { id: 't1', type: 'submitted', label: 'Submitted', description: 'Report received.', timestamp: '2025-07-13T08:00:00Z', isCompleted: true, isActive: false },
+      { id: 't2', type: 'verified', label: 'Under Review', description: 'Awaiting assignment.', timestamp: '', isCompleted: false, isActive: true },
+    ],
+    comments: [],
+  },
+  {
+    id: 'c004',
+    title: 'Water Leakage on Main Road',
+    description: 'There is a significant water leak near the intersection causing flooding.',
+    category: 'water_leak',
+    status: 'critical',
+    priority: 'critical',
+    location: { latitude: 41.88, longitude: -87.628 },
+    address: 'Main Road & 3rd Ave Intersection',
+    images: [],
+    reportedBy: 'user_002',
+    createdAt: '2025-07-16T06:00:00Z',
+    updatedAt: '2025-07-16T06:30:00Z',
+    upvotes: 42,
+    hasUserUpvoted: true,
+    timeline: [
+      { id: 't1', type: 'submitted', label: 'Submitted', description: 'Emergency report received.', timestamp: '2025-07-16T06:00:00Z', isCompleted: true, isActive: false },
+      { id: 't2', type: 'in_progress', label: 'Emergency Response', description: 'Water dept. dispatched.', timestamp: '2025-07-16T06:30:00Z', isCompleted: false, isActive: true },
+    ],
+    comments: [],
+  },
+];
+
+// ─── Mock Stats ───────────────────────────────────────────────────────────────
+export const MOCK_STATS = {
+  total: 12,
+  resolved: 8,
+  pending: 4,
+  inProgress: 2,
+  critical: 1,
+};
+
+// ─── Mock Map Markers ─────────────────────────────────────────────────────────
+export const MOCK_MAP_MARKERS: MapMarker[] = MOCK_COMPLAINTS.map((c) => ({
+  id: c.id,
+  latitude: c.location.latitude,
+  longitude: c.location.longitude,
+  status: c.status,
+  category: c.category,
+  title: c.title,
+}));
+
+// ─── Emergency Contacts ───────────────────────────────────────────────────────
+export const MOCK_EMERGENCY_CONTACTS: EmergencyContact[] = [
+  { id: 'ec1', title: 'Police & EMS', subtitle: 'General Emergency', phone: '911', icon: 'emergency', colorClass: 'bg-error', iconBgClass: 'bg-error', iconColorClass: 'text-white' },
+  { id: 'ec2', title: 'Utility Crisis', subtitle: 'Gas, Electric, Water', phone: '1-800-555-0100', icon: 'bolt', colorClass: 'bg-tertiary-container', iconBgClass: 'bg-tertiary-container', iconColorClass: 'text-on-tertiary-container' },
+  { id: 'ec3', title: 'City Helpline', subtitle: 'Non-emergency enquiries', phone: '311', icon: 'support_agent', colorClass: 'bg-primary-container', iconBgClass: 'bg-primary-container', iconColorClass: 'text-on-primary-container' },
+];
+
+// ─── Mock Feed Posts ──────────────────────────────────────────────────────────
+export const MOCK_FEED_POSTS: FeedPost[] = [
+  {
+    id: 'fp001',
+    type: 'resolved',
+    title: 'Street Light Repair Completed',
+    body: 'The faulty street light on 5th Ave has been successfully replaced. Thank you for your patience.',
+    images: ['https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800'],
+    author: { id: 'dept_01', name: 'Public Works Dept.', isOfficial: true, department: 'Public Works' },
+    likes: 34,
+    hasUserLiked: false,
+    comments: [],
+    commentCount: 8,
+    publishedAt: '2025-07-12T16:00:00Z',
+    linkedComplaintId: 'c002',
+    tags: ['street-light', 'resolved'],
+  },
+  {
+    id: 'fp002',
+    type: 'update',
+    title: 'Park Beautification Project',
+    body: 'New seating and flower beds are being installed at Central Square Park this week.',
+    images: ['https://images.unsplash.com/photo-1585320806297-9794b3e4aaae?w=800'],
+    author: { id: 'dept_02', name: 'Parks Department', isOfficial: true, department: 'Parks & Rec' },
+    likes: 89,
+    hasUserLiked: true,
+    comments: [],
+    commentCount: 12,
+    publishedAt: '2025-07-10T10:00:00Z',
+    tags: ['park', 'community'],
+  },
+  {
+    id: 'fp003',
+    type: 'community',
+    title: 'Sanitation Schedule Changes',
+    body: 'Request for additional waste bins on Main Street has been received and is under review.',
+    images: ['https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800'],
+    author: { id: 'user_003', name: 'Maria Santos', isOfficial: false },
+    likes: 15,
+    hasUserLiked: false,
+    comments: [],
+    commentCount: 3,
+    publishedAt: '2025-07-08T09:00:00Z',
+    tags: ['garbage', 'sanitation'],
+  },
+];
+
+// ─── Category Config ──────────────────────────────────────────────────────────
+export const CATEGORY_CONFIG = [
+  { key: 'pothole', label: 'Pothole', icon: 'road', color: '#ba1a1a' },
+  { key: 'street_light', label: 'Street Light', icon: 'lightbulb', color: '#784b00' },
+  { key: 'water_leak', label: 'Water Leak', icon: 'water_drop', color: '#004ac6' },
+  { key: 'garbage', label: 'Garbage', icon: 'delete', color: '#006e2f' },
+  { key: 'graffiti', label: 'Graffiti', icon: 'format_paint', color: '#5b21b6' },
+  { key: 'park', label: 'Park Issue', icon: 'park', color: '#065f46' },
+  { key: 'traffic', label: 'Traffic', icon: 'traffic', color: '#1e40af' },
+  { key: 'other', label: 'Other', icon: 'more_horiz', color: '#374151' },
+] as const;
