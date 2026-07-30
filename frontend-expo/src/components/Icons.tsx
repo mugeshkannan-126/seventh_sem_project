@@ -294,3 +294,20 @@ export const ArrowUpIcon = ({ color = '#737781', size = 20 }: IconProps) => (
     <Path d="M12 19V5M5 12l7-7 7 7" />
   </Svg>
 );
+
+export const ShareIcon = ({ color = '#737781', size = 20 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Circle cx="18" cy="5" r="3" />
+    <Circle cx="6" cy="12" r="3" />
+    <Circle cx="18" cy="19" r="3" />
+    <Path d="M8.59 13.51l6.83 3.98M15.41 6.51L8.59 10.49" />
+  </Svg>
+);
+
+export const MapIcon = ({ color = '#737781', size = 20 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M3 6l7-4 7 4 4-2v14l-4 2-7-4-7 4-4-2V6z" />
+    <Path d="M10 2v14M17 6v14" />
+  </Svg>
+);
+

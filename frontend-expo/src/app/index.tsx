@@ -35,6 +35,7 @@ import {
   GlobeIcon,
   TrashIcon,
   EditIcon,
+  MapIcon,
 } from '../components/Icons';
 import { API_BASE, session } from '../services/api';
 
@@ -59,6 +60,14 @@ export default function AppScreen() {
   const [editingReport, setEditingReport] = useState<any>(null);
   const [editDescription, setEditDescription] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  useEffect(() => {
+    session.init().then(() => {
+      setIsLoggedIn(session.isLoggedIn());
+      setIsInitializing(false);
+    });
+  }, []);
 
   const handleDeleteReport = (reportId: number) => {
     Alert.alert('Delete Report', 'Are you sure you want to delete this report?', [
@@ -212,7 +221,7 @@ export default function AppScreen() {
       
       const result = await response.json();
       if (response.ok && result.success) {
-        session.setUser(result.data);
+        session.setUser(result.data, rememberMe);
         setIsLoggedIn(true);
       } else {
         Alert.alert('Login Failed', result.message || 'Invalid email or password.');
@@ -306,6 +315,14 @@ export default function AppScreen() {
       return dateStr;
     }
   };
+
+  if (isInitializing) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8f9ff' }}>
+        <ActivityIndicator size="large" color="#00386c" />
+      </View>
+    );
+  }
 
   // -------------------------------------------------------------
   // RENDER LOGGED IN DASHBOARD
@@ -475,6 +492,11 @@ export default function AppScreen() {
           <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/complaint')}>
             <PlusIcon size={24} color="#737781" />
             <Text style={styles.tabLabel}>Report</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/maps')}>
+            <MapIcon size={24} color="#737781" />
+            <Text style={styles.tabLabel}>Maps</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/profile')}>

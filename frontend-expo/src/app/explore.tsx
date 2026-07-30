@@ -10,6 +10,7 @@ import {
   TextInput,
   RefreshControl,
   Image,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -23,6 +24,8 @@ import {
   SearchIcon,
   FilterIcon,
   ArrowUpIcon,
+  ShareIcon,
+  MapIcon,
 } from '../components/Icons';
 import { API_BASE, session } from '../services/api';
 
@@ -35,6 +38,27 @@ export default function ExploreScreen() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [sortBy, setSortBy] = useState('Newest');
+
+  const handleShare = async (report: any) => {
+    try {
+      const message = `Check out this issue on Smart Civic Platform:\n\n${report.title}\nLocation: ${report.address || 'Not specified'}\nStatus: ${report.status || 'Pending'}\n\nDownload the app to upvote and track it!`;
+      const result = await Share.share({
+        message,
+        title: report.title,
+      });
+      if (result.action === Share.sharedAction) {
+        if (result.activityType) {
+          // shared with activity type of result.activityType
+        } else {
+          // shared
+        }
+      } else if (result.action === Share.dismissedAction) {
+        // dismissed
+      }
+    } catch (error: any) {
+      console.log('Error sharing:', error.message);
+    }
+  };
 
   const handleUpvote = async (reportId: number) => {
     const currentUser = session.getUser();
@@ -270,6 +294,13 @@ export default function ExploreScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <Text style={styles.citizenText}>Citizen #{report.citizen_id}</Text>
                   <TouchableOpacity 
+                    style={styles.shareButton} 
+                    onPress={() => handleShare(report)}
+                    activeOpacity={0.7}
+                  >
+                    <ShareIcon size={16} color="#00386c" />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
                     style={[styles.upvoteButton, report.has_upvoted && styles.upvoteButtonActive]} 
                     onPress={() => handleUpvote(report.complaint_id)}
                     activeOpacity={0.7}
@@ -299,6 +330,11 @@ export default function ExploreScreen() {
         <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/complaint')}>
           <PlusIcon size={24} color="#737781" />
           <Text style={styles.tabLabel}>Report</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/maps')}>
+          <MapIcon size={24} color="#737781" />
+          <Text style={styles.tabLabel}>Maps</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/profile')}>
@@ -519,6 +555,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#00386c',
+  },
+  shareButton: {
+    padding: 6,
+    backgroundColor: '#f0f4f8',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   upvoteButton: {
     flexDirection: 'row',
