@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Use the local computer's IP address for mobile devices, and localhost for web
 export const API_BASE = Platform.OS === 'web'
   ? 'http://127.0.0.1:8000'
-  : 'http://10.184.16.15:8000';
+  : 'http://172.120.22.242:8000';
 
 // Global session store to persist user login info across screens
 class SessionStore {

@@ -70,7 +70,7 @@ API_V1_STR="/api/v1"
 To run the server locally with reload enabled:
 
 ```bash
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --host 0.0.0.0
 ```
 
 - **Interactive Swagger Documentation**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
