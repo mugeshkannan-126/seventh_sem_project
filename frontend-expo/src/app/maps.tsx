@@ -26,6 +26,9 @@ import {
   CloseIcon,
   ListIcon,
   InfoIcon,
+  BoldPlusIcon,
+  ChevronDownIcon,
+  CheckIcon,
 } from '../components/Icons';
 import { API_BASE, session } from '../services/api';
 
@@ -81,6 +84,14 @@ export default function MapsScreen() {
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [sortBy, setSortBy] = useState<'Newest' | 'Oldest' | 'Most Upvotes' | 'Priority'>('Newest');
   const [colorByMode, setColorByMode] = useState<'Category' | 'Status'>('Category');
+  const [activeModal, setActiveModal] = useState<'status' | 'category' | 'sort' | null>(null);
+
+  const hasActiveFilters = selectedCategory !== 'All' || selectedStatus !== 'All' || sortBy !== 'Newest';
+  const resetFilters = () => {
+    setSelectedCategory('All');
+    setSelectedStatus('All');
+    setSortBy('Newest');
+  };
   
   // UI Toggles
   const [showLegendModal, setShowLegendModal] = useState(false);
@@ -468,82 +479,61 @@ export default function MapsScreen() {
           </View>
         </View>
 
-        {/* Horizontal Category Filter Chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryChipsScroll}
-        >
-          {['All', 'Pothole', 'Leakage', 'Street Light', 'Waste', 'Other'].map((cat) => {
-            const isSelected = selectedCategory === cat;
-            const catColor = cat === 'All' ? '#00386c' : getCategoryColor(cat);
-            const count = categoryCounts[cat] || 0;
-
-            return (
-              <TouchableOpacity
-                key={cat}
-                style={[
-                  styles.chip,
-                  isSelected && { backgroundColor: catColor, borderColor: catColor },
-                ]}
-                onPress={() => setSelectedCategory(cat)}
-                activeOpacity={0.7}
-              >
-                <View
-                  style={[
-                    styles.chipDot,
-                    { backgroundColor: isSelected ? '#ffffff' : catColor },
-                  ]}
-                />
-                <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
-                  {cat}
+        {/* Dropdown Filters Row */}
+        <View style={styles.filtersWrapper}>
+          <View style={styles.filterRow}>
+            {/* Status Dropdown */}
+            <TouchableOpacity
+              style={[styles.dropdownButton, selectedStatus !== 'All' && styles.dropdownButtonActive]}
+              onPress={() => setActiveModal('status')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.dropdownLabel}>Status</Text>
+              <View style={styles.dropdownValueRow}>
+                <Text style={[styles.dropdownValueText, selectedStatus !== 'All' && styles.dropdownValueTextActive]} numberOfLines={1}>
+                  {selectedStatus}
                 </Text>
-                <View
-                  style={[
-                    styles.countBadge,
-                    isSelected ? { backgroundColor: 'rgba(255,255,255,0.25)' } : { backgroundColor: '#e5eeff' },
-                  ]}
-                >
-                  <Text style={[styles.countText, isSelected && { color: '#ffffff' }]}>
-                    {count}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+                <ChevronDownIcon size={14} color={selectedStatus !== 'All' ? '#00386c' : '#737781'} />
+              </View>
+            </TouchableOpacity>
 
-        {/* Status Filter & Sort Row */}
-        <View style={styles.subFilterRow}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
-            {['All', 'Pending', 'In Progress', 'Resolved'].map((stat) => {
-              const isSelected = selectedStatus === stat;
-              return (
-                <TouchableOpacity
-                  key={stat}
-                  style={[styles.subFilterChip, isSelected && styles.subFilterChipActive]}
-                  onPress={() => setSelectedStatus(stat)}
-                >
-                  <Text style={[styles.subFilterText, isSelected && styles.subFilterTextActive]}>
-                    {stat}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+            {/* Category Dropdown */}
+            <TouchableOpacity
+              style={[styles.dropdownButton, selectedCategory !== 'All' && styles.dropdownButtonActive]}
+              onPress={() => setActiveModal('category')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.dropdownLabel}>Category</Text>
+              <View style={styles.dropdownValueRow}>
+                <Text style={[styles.dropdownValueText, selectedCategory !== 'All' && styles.dropdownValueTextActive]} numberOfLines={1}>
+                  {selectedCategory}
+                </Text>
+                <ChevronDownIcon size={14} color={selectedCategory !== 'All' ? '#00386c' : '#737781'} />
+              </View>
+            </TouchableOpacity>
 
-          {/* Sort Selector */}
-          <TouchableOpacity
-            style={styles.sortButton}
-            onPress={() => {
-              const options: Array<'Newest' | 'Oldest' | 'Most Upvotes' | 'Priority'> = ['Newest', 'Oldest', 'Most Upvotes', 'Priority'];
-              const nextIndex = (options.indexOf(sortBy) + 1) % options.length;
-              setSortBy(options[nextIndex]);
-            }}
-          >
-            <FilterIcon size={14} color="#00386c" />
-            <Text style={styles.sortText}>Sort: {sortBy}</Text>
-          </TouchableOpacity>
+            {/* Sort By Dropdown */}
+            <TouchableOpacity
+              style={[styles.dropdownButton, sortBy !== 'Newest' && styles.dropdownButtonActive]}
+              onPress={() => setActiveModal('sort')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.dropdownLabel}>Sort By</Text>
+              <View style={styles.dropdownValueRow}>
+                <Text style={[styles.dropdownValueText, sortBy !== 'Newest' && styles.dropdownValueTextActive]} numberOfLines={1}>
+                  {sortBy}
+                </Text>
+                <ChevronDownIcon size={14} color={sortBy !== 'Newest' ? '#00386c' : '#737781'} />
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {hasActiveFilters && (
+            <TouchableOpacity style={styles.resetButton} onPress={resetFilters} activeOpacity={0.7}>
+              <CloseIcon size={12} color="#00386c" />
+              <Text style={styles.resetButtonText}>Clear Filters</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -703,9 +693,11 @@ export default function MapsScreen() {
           <Text style={styles.tabLabel}>Explore</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/complaint')}>
-          <PlusIcon size={24} color="#737781" />
-          <Text style={styles.tabLabel}>Report</Text>
+        <TouchableOpacity style={styles.tabItemReport} onPress={() => router.push('/complaint')} activeOpacity={0.85}>
+          <View style={styles.reportBadgeCircle}>
+            <BoldPlusIcon size={28} color="#ffffff" />
+          </View>
+          <Text style={styles.reportTabLabel}>Report</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/maps')}>
@@ -718,6 +710,95 @@ export default function MapsScreen() {
           <Text style={styles.tabLabel}>Profile</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Dropdown Options Modal Sheet */}
+      <Modal
+        visible={activeModal !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setActiveModal(null)}
+      >
+        <TouchableOpacity
+          style={styles.filterModalOverlay}
+          activeOpacity={1}
+          onPress={() => setActiveModal(null)}
+        >
+          <View style={styles.filterModalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.filterModalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <FilterIcon size={18} color="#00386c" />
+                <Text style={styles.filterModalTitle}>
+                  {activeModal === 'status' && 'Filter Map by Status'}
+                  {activeModal === 'category' && 'Filter Map by Category'}
+                  {activeModal === 'sort' && 'Sort Map Reports By'}
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.filterModalCloseButton} onPress={() => setActiveModal(null)}>
+                <CloseIcon size={20} color="#737781" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalOptionsList} bounces={false}>
+              {activeModal === 'status' && ['All', 'Pending', 'In Progress', 'Resolved'].map(s => {
+                const isSelected = selectedStatus === s;
+                return (
+                  <TouchableOpacity
+                    key={`opt-status-${s}`}
+                    style={[styles.modalOptionItem, isSelected && styles.modalOptionItemSelected]}
+                    onPress={() => {
+                      setSelectedStatus(s);
+                      setActiveModal(null);
+                    }}
+                  >
+                    <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                      {s}
+                    </Text>
+                    {isSelected && <CheckIcon size={18} color="#00386c" />}
+                  </TouchableOpacity>
+                );
+              })}
+
+              {activeModal === 'category' && ['All', 'Pothole', 'Leakage', 'Street Light', 'Waste', 'Other'].map(c => {
+                const isSelected = selectedCategory === c;
+                return (
+                  <TouchableOpacity
+                    key={`opt-cat-${c}`}
+                    style={[styles.modalOptionItem, isSelected && styles.modalOptionItemSelected]}
+                    onPress={() => {
+                      setSelectedCategory(c);
+                      setActiveModal(null);
+                    }}
+                  >
+                    <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                      {c}
+                    </Text>
+                    {isSelected && <CheckIcon size={18} color="#00386c" />}
+                  </TouchableOpacity>
+                );
+              })}
+
+              {activeModal === 'sort' && (['Newest', 'Oldest', 'Most Upvotes', 'Priority'] as const).map(s => {
+                const isSelected = sortBy === s;
+                return (
+                  <TouchableOpacity
+                    key={`opt-sort-${s}`}
+                    style={[styles.modalOptionItem, isSelected && styles.modalOptionItemSelected]}
+                    onPress={() => {
+                      setSortBy(s);
+                      setActiveModal(null);
+                    }}
+                  >
+                    <Text style={[styles.modalOptionText, isSelected && styles.modalOptionTextSelected]}>
+                      {s}
+                    </Text>
+                    {isSelected && <CheckIcon size={18} color="#00386c" />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -813,82 +894,69 @@ const styles = StyleSheet.create({
   toggleTextActive: {
     color: '#ffffff',
   },
-  categoryChipsScroll: {
-    gap: 6,
-    paddingBottom: 4,
+  filtersWrapper: {
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#e5eeff',
+    paddingTop: 8,
+    marginTop: 4,
   },
-  chip: {
+  filterRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    gap: 8,
+  },
+  dropdownButton: {
+    flex: 1,
+    backgroundColor: '#f0f4f8',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#d0d7de',
-    borderRadius: 20,
+    borderColor: '#e5eeff',
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    gap: 6,
+    paddingVertical: 8,
   },
-  chipDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  dropdownButtonActive: {
+    backgroundColor: '#eef5fc',
+    borderColor: '#00386c',
   },
-  chipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#334155',
-  },
-  chipTextActive: {
-    color: '#ffffff',
-  },
-  countBadge: {
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-  },
-  countText: {
+  dropdownLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#00386c',
+    color: '#737781',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
   },
-  subFilterRow: {
+  dropdownValueRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 6,
-    gap: 8,
   },
-  subFilterChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
+  dropdownValueText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1a1f36',
+    flex: 1,
     marginRight: 4,
-    backgroundColor: '#f1f5f9',
   },
-  subFilterChipActive: {
-    backgroundColor: '#00386c',
-  },
-  subFilterText: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#64748b',
-  },
-  subFilterTextActive: {
-    color: '#ffffff',
+  dropdownValueTextActive: {
+    color: '#00386c',
     fontWeight: '700',
   },
-  sortButton: {
+  resetButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-end',
     gap: 4,
-    backgroundColor: '#e5eeff',
+    marginTop: 8,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
+    backgroundColor: '#eef5fc',
   },
-  sortText: {
+  resetButtonText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#00386c',
   },
   mapContainer: {
@@ -1116,12 +1184,47 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e5eeff',
     paddingBottom: Platform.OS === 'ios' ? 12 : 0,
+    overflow: 'visible',
   },
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
     height: '100%',
+  },
+  tabItemReport: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: -24,
+  },
+  reportBadgeCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#ff3b30',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#ff3b30',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 7,
+    borderWidth: 3,
+    borderColor: '#ffffff',
+  },
+  reportBadgeCircleActive: {
+    backgroundColor: '#d32f2f',
+    shadowColor: '#d32f2f',
+  },
+  reportTabLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#ff3b30',
+    marginTop: 2,
+  },
+  reportTabLabelActive: {
+    color: '#d32f2f',
   },
   tabLabel: {
     fontSize: 11,
@@ -1132,6 +1235,65 @@ const styles = StyleSheet.create({
   tabLabelActive: {
     color: '#00386c',
     fontWeight: '700',
+  },
+  filterModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'flex-end',
+  },
+  filterModalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 36,
+    maxHeight: '60%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  filterModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f4f8',
+  },
+  filterModalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#00386c',
+  },
+  filterModalCloseButton: {
+    padding: 4,
+  },
+  modalOptionsList: {
+    paddingTop: 12,
+  },
+  modalOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginVertical: 3,
+  },
+  modalOptionItemSelected: {
+    backgroundColor: '#eef5fc',
+  },
+  modalOptionText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#424750',
+  },
+  modalOptionTextSelected: {
+    fontWeight: '700',
+    color: '#00386c',
   },
 });
 

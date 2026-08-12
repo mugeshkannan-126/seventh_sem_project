@@ -36,6 +36,7 @@ import {
   TrashIcon,
   EditIcon,
   MapIcon,
+  BoldPlusIcon,
 } from '../components/Icons';
 import { API_BASE, session } from '../services/api';
 
@@ -489,9 +490,11 @@ export default function AppScreen() {
             <Text style={styles.tabLabel}>Explore</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/complaint')}>
-            <PlusIcon size={24} color="#737781" />
-            <Text style={styles.tabLabel}>Report</Text>
+          <TouchableOpacity style={styles.tabItemReport} onPress={() => router.push('/complaint')} activeOpacity={0.85}>
+            <View style={styles.reportBadgeCircle}>
+              <BoldPlusIcon size={28} color="#ffffff" />
+            </View>
+            <Text style={styles.reportTabLabel}>Report</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.tabItem} onPress={() => router.push('/maps')}>
@@ -1469,12 +1472,47 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#eff4ff',
     paddingBottom: Platform.OS === 'ios' ? 12 : 0,
+    overflow: 'visible',
   },
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
     height: '100%',
+  },
+  tabItemReport: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: -24,
+  },
+  reportBadgeCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#ff3b30',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#ff3b30',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 7,
+    borderWidth: 3,
+    borderColor: '#ffffff',
+  },
+  reportBadgeCircleActive: {
+    backgroundColor: '#d32f2f',
+    shadowColor: '#d32f2f',
+  },
+  reportTabLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#ff3b30',
+    marginTop: 2,
+  },
+  reportTabLabelActive: {
+    color: '#d32f2f',
   },
   tabLabel: {
     fontSize: 11,

@@ -311,3 +311,28 @@ export const MapIcon = ({ color = '#737781', size = 20 }: IconProps) => (
   </Svg>
 );
 
+export const ChevronDownIcon = ({ color = '#737781', size = 16 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M6 9l6 6 6-6" />
+  </Svg>
+);
+
+export const CheckIcon = ({ color = '#00386c', size = 18 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M20 6L9 17l-5-5" />
+  </Svg>
+);
+
+export const BoldPlusIcon = ({ color = '#ffffff', size = 26 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M12 4V20M4 12H20"
+      stroke={color}
+      strokeWidth="3.5"
+      strokeLinecap="round"
+    />
+  </Svg>
+);
+
+
+
