@@ -67,3 +67,5 @@ class Complaint(Base):
     assignments: Mapped[List[Assignment]] = relationship("Assignment", back_populates="complaint", cascade="all, delete-orphan")
     status_histories: Mapped[List[StatusHistory]] = relationship("StatusHistory", back_populates="complaint", cascade="all, delete-orphan")
     feedbacks: Mapped[List[Feedback]] = relationship("Feedback", foreign_keys="[Feedback.complaint_id]", back_populates="complaint", cascade="all, delete-orphan")
+    notifications: Mapped[List[Notification]] = relationship("Notification", back_populates="complaint", cascade="all, delete-orphan")
+

@@ -2,10 +2,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from app.config import settings
 
-# Create engine with pool_pre_ping to check connection viability
+# Create engine with pool_pre_ping and pool_recycle for Supabase hosted Postgres
 engine = create_engine(
     settings.DATABASE_URL,
     pool_pre_ping=True,
+    pool_recycle=300,
+    pool_size=10,
+    max_overflow=20,
 )
 
 # Set up local session factory
@@ -20,5 +23,9 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
+

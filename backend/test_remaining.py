@@ -14,7 +14,8 @@ def cleanup_db():
     from app.database import SessionLocal
     from app.models.user import User
     from app.models.department import Department
-    from app.models.complaint import Complaint
+    from app.models.complaint import Complaint, ComplaintUpvote
+    from app.models.complaint_image import ComplaintImage
     from app.models.assignment import Assignment
     from app.models.status_history import StatusHistory
     from app.models.notification import Notification
@@ -33,18 +34,27 @@ def cleanup_db():
         user_ids = [u.user_id for u in test_users]
         
         if user_ids:
-            # Delete related feedback
+            # Delete related child records
             db.query(Feedback).filter(Feedback.citizen_id.in_(user_ids)).delete(synchronize_session=False)
-            # Delete related notifications
             db.query(Notification).filter(Notification.user_id.in_(user_ids)).delete(synchronize_session=False)
-            # Delete assignments
             db.query(Assignment).filter((Assignment.official_id.in_(user_ids)) | (Assignment.engineer_id.in_(user_ids))).delete(synchronize_session=False)
+            db.query(StatusHistory).filter(StatusHistory.updated_by.in_(user_ids)).delete(synchronize_session=False)
             
-            # Delete complaints reported by test users
-            db.query(Complaint).filter(Complaint.citizen_id.in_(user_ids)).delete(synchronize_session=False)
+            # Find complaints to clean up
+            complaints = db.query(Complaint).filter(Complaint.citizen_id.in_(user_ids)).all()
+            comp_ids = [c.complaint_id for c in complaints]
+            if comp_ids:
+                db.query(ComplaintImage).filter(ComplaintImage.complaint_id.in_(comp_ids)).delete(synchronize_session=False)
+                db.query(ComplaintUpvote).filter(ComplaintUpvote.complaint_id.in_(comp_ids)).delete(synchronize_session=False)
+                db.query(Assignment).filter(Assignment.complaint_id.in_(comp_ids)).delete(synchronize_session=False)
+                db.query(StatusHistory).filter(StatusHistory.complaint_id.in_(comp_ids)).delete(synchronize_session=False)
+                db.query(Feedback).filter(Feedback.complaint_id.in_(comp_ids)).delete(synchronize_session=False)
+                db.query(Notification).filter(Notification.complaint_id.in_(comp_ids)).delete(synchronize_session=False)
+                db.query(Complaint).filter(Complaint.citizen_id.in_(user_ids)).delete(synchronize_session=False)
             
             # Delete users
             db.query(User).filter(User.user_id.in_(user_ids)).delete(synchronize_session=False)
+
             
         # Delete test departments
         db.query(Department).filter(Department.department_name.in_([

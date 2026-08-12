@@ -42,23 +42,27 @@ class User(Base):
     reported_complaints: Mapped[List[Complaint]] = relationship(
         "Complaint", 
         foreign_keys="[Complaint.citizen_id]", 
-        back_populates="reporter"
+        back_populates="reporter",
+        cascade="all, delete-orphan"
     )
     
     # Tasks where user is the assigned Official
     assigned_official_tasks: Mapped[List[Assignment]] = relationship(
         "Assignment", 
         foreign_keys="[Assignment.official_id]", 
-        back_populates="official"
+        back_populates="official",
+        cascade="all, delete-orphan"
     )
 
     # Tasks where user is the assigned Engineer
     assigned_engineer_tasks: Mapped[List[Assignment]] = relationship(
         "Assignment", 
         foreign_keys="[Assignment.engineer_id]", 
-        back_populates="engineer"
+        back_populates="engineer",
+        cascade="all, delete-orphan"
     )
     
-    notifications: Mapped[List[Notification]] = relationship("Notification", back_populates="user")
-    feedbacks: Mapped[List[Feedback]] = relationship("Feedback", foreign_keys="[Feedback.citizen_id]", back_populates="user")
-    status_updates: Mapped[List[StatusHistory]] = relationship("StatusHistory", foreign_keys="[StatusHistory.updated_by]", back_populates="updater")
+    notifications: Mapped[List[Notification]] = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+    feedbacks: Mapped[List[Feedback]] = relationship("Feedback", foreign_keys="[Feedback.citizen_id]", back_populates="user", cascade="all, delete-orphan")
+    status_updates: Mapped[List[StatusHistory]] = relationship("StatusHistory", foreign_keys="[StatusHistory.updated_by]", back_populates="updater", cascade="all, delete-orphan")
+

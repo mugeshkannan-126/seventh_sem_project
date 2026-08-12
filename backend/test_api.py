@@ -15,7 +15,8 @@ def cleanup_db():
     from app.database import SessionLocal
     from app.models.user import User
     from app.models.department import Department
-    from app.models.complaint import Complaint
+    from app.models.complaint import Complaint, ComplaintUpvote
+    from app.models.complaint_image import ComplaintImage
     from app.models.assignment import Assignment
     from app.models.feedback import Feedback
     from app.models.notification import Notification
@@ -28,7 +29,10 @@ def cleanup_db():
             "test_official@civicplatform.com",
             "test_staff@civicplatform.com",
             "test_engineer@civicplatform.com",
-            "invalid_staff@civicplatform.com"
+            "invalid_staff@civicplatform.com",
+            "test_remaining_citizen@civicplatform.com",
+            "test_remaining_official@civicplatform.com",
+            "test_remaining_engineer@civicplatform.com"
         ]
         # Clean up related tables
         test_users = db.query(User).filter(User.email.in_(test_emails)).all()
@@ -45,11 +49,14 @@ def cleanup_db():
             complaints = db.query(Complaint).filter(Complaint.citizen_id.in_(user_ids)).all()
             comp_ids = [c.complaint_id for c in complaints]
             if comp_ids:
+                db.query(ComplaintImage).filter(ComplaintImage.complaint_id.in_(comp_ids)).delete(synchronize_session=False)
+                db.query(ComplaintUpvote).filter(ComplaintUpvote.complaint_id.in_(comp_ids)).delete(synchronize_session=False)
                 db.query(Assignment).filter(Assignment.complaint_id.in_(comp_ids)).delete(synchronize_session=False)
                 db.query(StatusHistory).filter(StatusHistory.complaint_id.in_(comp_ids)).delete(synchronize_session=False)
                 db.query(Feedback).filter(Feedback.complaint_id.in_(comp_ids)).delete(synchronize_session=False)
                 db.query(Notification).filter(Notification.complaint_id.in_(comp_ids)).delete(synchronize_session=False)
                 db.query(Complaint).filter(Complaint.citizen_id.in_(user_ids)).delete(synchronize_session=False)
+
 
         # Delete test users
         db.query(User).filter(User.email.in_(test_emails)).delete(synchronize_session=False)
