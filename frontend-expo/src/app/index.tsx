@@ -1106,7 +1106,7 @@ const styles = StyleSheet.create({
     padding: 0,
     ...Platform.select({
       web: {
-        outlineStyle: 'none',
+        outlineStyle: 'none' as any,
       },
     }),
   },

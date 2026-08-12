@@ -50,6 +50,7 @@ export default function ComplaintScreen() {
   const [imageFileName, setImageFileName] = useState('');
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiSelectedCategory, setAiSelectedCategory] = useState<string | null>(null);
 
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
@@ -142,76 +143,251 @@ export default function ComplaintScreen() {
     handleImageResult(result);
   };
 
-  const handleImageResult = (result: ImagePicker.ImagePickerResult) => {
+  const matchCategory = (rawCategory: string, descriptionText: string): { category: string; customCategory?: string } => {
+    const catLower = (rawCategory || '').toLowerCase().trim();
+    const descLower = (descriptionText || '').toLowerCase().trim();
+
+    console.log('🤖 [AI Category Matcher] Processing raw category:', JSON.stringify(rawCategory));
+    console.log('🤖 [AI Category Matcher] Processing description text:', JSON.stringify(descriptionText));
+
+    // 1. Direct / Exact / Partial Match against primary category names
+    if (catLower.includes('pothole') || catLower.includes('road') || catLower.includes('asphalt') || catLower.includes('crater') || catLower.includes('pavement')) {
+      console.log('🤖 [AI Category Matcher] -> Matched primary category: "Pothole"');
+      return { category: 'Pothole' };
+    }
+    if (catLower.includes('leak') || catLower.includes('water') || catLower.includes('pipe') || catLower.includes('drain') || catLower.includes('sewage') || catLower.includes('plumbing') || catLower.includes('overflow')) {
+      console.log('🤖 [AI Category Matcher] -> Matched primary category: "Leakage"');
+      return { category: 'Leakage' };
+    }
+    if (catLower.includes('light') || catLower.includes('lamp') || catLower.includes('street light') || catLower.includes('streetlight') || catLower.includes('electricity') || catLower.includes('bulb') || catLower.includes('dark')) {
+      console.log('🤖 [AI Category Matcher] -> Matched primary category: "Street Light"');
+      return { category: 'Street Light' };
+    }
+    if (catLower.includes('waste') || catLower.includes('garbage') || catLower.includes('trash') || catLower.includes('dump') || catLower.includes('litter') || catLower.includes('bin') || catLower.includes('rubbish') || catLower.includes('refuse')) {
+      console.log('🤖 [AI Category Matcher] -> Matched primary category: "Waste"');
+      return { category: 'Waste' };
+    }
+
+    // 2. Keyword fallback matching based on description if raw category was vague or 'other'
+    if (descLower.includes('pothole') || descLower.includes('road damage') || descLower.includes('crater') || descLower.includes('hole in road') || descLower.includes('broken road')) {
+      console.log('🤖 [AI Category Matcher] -> Matched primary category: "Pothole" from description analysis');
+      return { category: 'Pothole' };
+    }
+    if (descLower.includes('leak') || descLower.includes('water overflow') || descLower.includes('pipe burst') || descLower.includes('drainage') || descLower.includes('sewage')) {
+      console.log('🤖 [AI Category Matcher] -> Matched primary category: "Leakage" from description analysis');
+      return { category: 'Leakage' };
+    }
+    if (descLower.includes('street light') || descLower.includes('lamp post') || descLower.includes('dark street') || descLower.includes('broken light') || descLower.includes('streetlight')) {
+      console.log('🤖 [AI Category Matcher] -> Matched primary category: "Street Light" from description analysis');
+      return { category: 'Street Light' };
+    }
+    if (descLower.includes('waste') || descLower.includes('garbage') || descLower.includes('trash') || descLower.includes('litter') || descLower.includes('dumpster') || descLower.includes('rubbish')) {
+      console.log('🤖 [AI Category Matcher] -> Matched primary category: "Waste" from description analysis');
+      return { category: 'Waste' };
+    }
+
+    // 3. Fallback to 'Other' with custom category
+    if (rawCategory && !['other', 'general', 'unknown'].includes(catLower)) {
+      console.log('🤖 [AI Category Matcher] -> Setting custom category under "Other":', rawCategory);
+      return { category: 'Other', customCategory: rawCategory };
+    }
+
+    console.log('🤖 [AI Category Matcher] -> Defaulting to category "Other"');
+    return { category: 'Other', customCategory: 'General Issue' };
+  };
+
+  const handleImageResult = async (result: ImagePicker.ImagePickerResult) => {
+    console.log('📷 [IMAGE PICKER] Result received:', {
+      canceled: result.canceled,
+      assetsCount: result.assets?.length || 0,
+    });
+
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const asset = result.assets[0];
       const uri = asset.uri;
       const fileName = uri.split('/').pop() || 'photo.jpg';
       setImageFileName(fileName);
-      uploadImage(uri, fileName, asset.base64);
-      if (asset.base64) {
-        analyzeImage(asset.base64);
+
+      console.log('📷 [IMAGE PICKER] Selected Asset Details:', {
+        uri,
+        fileName,
+        width: asset.width,
+        height: asset.height,
+        mimeType: asset.mimeType,
+        hasBase64: !!asset.base64,
+        base64Length: asset.base64 ? asset.base64.length : 0,
+      });
+
+      let base64Data = asset.base64;
+
+      if (!base64Data && uri) {
+        try {
+          console.log('🔄 [AI PREPROCESS] Base64 missing from image picker asset. Converting URI to Base64...');
+          const res = await fetch(uri);
+          const blob = await res.blob();
+          base64Data = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const dataUrl = reader.result as string;
+              const b64 = dataUrl.includes('base64,') ? dataUrl.split('base64,')[1] : dataUrl;
+              resolve(b64);
+            };
+            reader.onerror = (e) => reject(e);
+            reader.readAsDataURL(blob);
+          });
+          console.log('✅ [AI PREPROCESS] Successfully generated Base64 data from blob. Length:', base64Data.length);
+        } catch (b64Err) {
+          console.log('❌ [AI PREPROCESS] Failed to fetch Base64 from URI:', b64Err);
+        }
       }
+
+      uploadImage(uri, fileName, base64Data);
+
+      if (base64Data) {
+        analyzeImage(base64Data);
+      } else {
+        console.log('❌ [AI PREPROCESS] Could not obtain base64 image data for AI analysis.');
+      }
+    } else {
+      console.log('📷 [IMAGE PICKER] Selection cancelled by user.');
     }
+  };
+
+  const formatUserPerspectiveDescription = (rawDesc: string): string => {
+    if (!rawDesc) return '';
+    let cleaned = rawDesc.trim();
+
+    // Strip out meta phrases like "The image shows", "This picture displays", "The photo highlights"
+    cleaned = cleaned.replace(/^(the|this)\s+(image|photo|picture|snapshot)\s+(shows|depicts|displays|highlights|illustrates|appears to show|captures|reveals)\s+(a|an)?\s*/i, '');
+    cleaned = cleaned.replace(/^(there is|there are)\s+(a|an)?\s*/i, '');
+
+    // Remove internal meta-phrases
+    cleaned = cleaned.replace(/\b(in the image|in this photo|in the picture|shown in the photo|shown in the image)\b/gi, '').trim();
+
+    // Ensure first character is capitalized
+    if (cleaned.length > 0) {
+      cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+    }
+
+    return cleaned;
   };
 
   const analyzeImage = async (base64Data: string) => {
     setIsAnalyzing(true);
-    try {
-      const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || 'AQ.Ab8RN6Ke6RBI-W89tiE6XoxFeC2BxLt-AxZBtyyEPauZa-lFGw';
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${apiKey}`;
-      const actualBase64 = base64Data.includes('base64,') ? base64Data.split('base64,')[1] : base64Data;
-      
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
+    setAiSelectedCategory(null);
+    console.log('====================================================');
+    console.log('🚀 [AI ANALYSIS START] Sending request to Gemini API...');
+    console.log('📦 [AI INPUT] Base64 payload length:', base64Data.length);
+
+    const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || 'AQ.Ab8RN6Ke6RBI-W89tiE6XoxFeC2BxLt-AxZBtyyEPauZa-lFGw';
+    const actualBase64 = base64Data.includes('base64,') ? base64Data.split('base64,')[1] : base64Data;
+    const maskedKey = apiKey ? `${apiKey.substring(0, 6)}...${apiKey.substring(apiKey.length - 4)}` : 'NONE';
+
+    const promptText = "You are a citizen filing a public issue report on the CivicFlow app. Describe the civic issue in 1-2 concise sentences as a direct, first-person citizen complaint (e.g. 'Street light is broken and not illuminating the road properly. Needs replacement for public safety.'). DO NOT use third-person meta phrases like 'The image shows', 'This picture displays', 'appears to show', or 'in this photo'. Write as if YOU are reporting the problem directly. Also classify it into one of these exact categories: 'Pothole', 'Leakage', 'Street Light', 'Waste', 'Other'. Return strictly a JSON object with keys 'description' and 'category'.";
+
+    const payload = {
+      contents: [
+        {
+          parts: [
+            { text: promptText },
             {
-              parts: [
-                {
-                  text: "You are a Civic Flow app assistant. Analyze this image of a civic issue. Provide a short description (1-2 sentences) of the issue shown. Then classify it into one of these exact categories: 'Pothole', 'Leakage', 'Street Light', 'Waste', 'Other'. Return the result strictly as a JSON object with keys 'description' and 'category'."
-                },
-                {
-                  inlineData: {
-                    mimeType: "image/jpeg",
-                    data: actualBase64
-                  }
-                }
-              ]
+              inlineData: {
+                mimeType: "image/jpeg",
+                data: actualBase64
+              }
             }
           ]
-        })
-      });
-      const result = await response.json();
-      
-      if (!response.ok || result.error) {
-         console.warn('Gemini API Error:', result.error?.message || 'Unknown error');
-         // Provide a fallback for demo purposes if API key is invalid
-         setDescription('Automated description: A public issue captured by the user.');
-         setCategory('Other');
-         setCustomCategory('General Issue');
-      } else if (result.candidates && result.candidates[0].content.parts[0].text) {
-        let text = result.candidates[0].content.parts[0].text;
-        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const parsed = JSON.parse(text);
-        if (parsed.description) setDescription(parsed.description);
-        if (parsed.category && ['Pothole', 'Leakage', 'Street Light', 'Waste', 'Other'].includes(parsed.category)) {
-          setCategory(parsed.category);
-        } else if (parsed.category) {
-          setCategory('Other');
-          setCustomCategory(parsed.category);
         }
+      ]
+    };
+
+    const modelsToTry = [
+      'gemini-flash-latest',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+      'gemini-1.5-pro'
+    ];
+
+    let success = false;
+
+    for (const model of modelsToTry) {
+      console.log(`🤖 [AI MODEL REQUEST] Calling Gemini model "${model}" with key ${maskedKey}...`);
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      try {
+        const startTime = Date.now();
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const durationMs = Date.now() - startTime;
+
+        console.log(`⏱️ [AI HTTP STATUS (${model})] Status: ${response.status} ${response.statusText} (${durationMs}ms)`);
+        const result = await response.json();
+
+        // PRINT DIRECT RAW AI RESPONSE TO CONSOLE
+        console.log(`🤖 [GEMINI AI DIRECT RAW RESPONSE - ${model}]:\n`, JSON.stringify(result, null, 2));
+
+        if (response.ok && !result.error && result.candidates && result.candidates.length > 0 && result.candidates[0].content?.parts?.length > 0) {
+          const rawCandidateText = result.candidates[0].content.parts[0].text;
+          console.log(`🤖 [GEMINI AI DIRECT TEXT OUTPUT]:\n${rawCandidateText}`);
+
+          const cleanedText = rawCandidateText.replace(/```json/g, '').replace(/```/g, '').trim();
+          let parsed: { description?: string; category?: string } = {};
+
+          try {
+            parsed = JSON.parse(cleanedText);
+            console.log('🤖 [GEMINI AI PARSED OBJECT]:', parsed);
+          } catch (jsonErr) {
+            const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              try {
+                parsed = JSON.parse(jsonMatch[0]);
+                console.log('🤖 [GEMINI AI PARSED VIA REGEX]:', parsed);
+              } catch (e) {}
+            }
+          }
+
+          if (parsed.description) {
+            const formattedDesc = formatUserPerspectiveDescription(parsed.description);
+            console.log('✏️ [AI SETTING USER PERSPECTIVE DESCRIPTION]:', formattedDesc);
+            setDescription(formattedDesc);
+          }
+
+          const rawCat = parsed.category || '';
+          const rawDesc = parsed.description || '';
+
+          const matched = matchCategory(rawCat, rawDesc);
+          console.log('🎯 [AI MAPPED CATEGORY]:', matched);
+
+          setCategory(matched.category);
+          if (matched.customCategory) {
+            setCustomCategory(matched.customCategory);
+          }
+          setAiSelectedCategory(matched.category === 'Other' ? (matched.customCategory || 'Other') : matched.category);
+
+          console.log(`====================================================`);
+          console.log(`🎉 [DIRECT AI RESPONSE SUCCESS] Category set to: "${matched.category}" (Description: "${parsed.description}")`);
+          console.log(`====================================================`);
+
+          success = true;
+          break;
+        } else {
+          console.log(`ℹ️ [AI MODEL RESPONSE NOTE] Model "${model}" note:`, result.error?.message || result);
+        }
+      } catch (modelErr) {
+        console.log(`ℹ️ [AI MODEL ERROR] Request failed for model "${model}":`, modelErr);
       }
-    } catch (error) {
-      console.log('Error analyzing image:', error);
-      // Fallback
-      setDescription('Automated description: A public issue captured by the user.');
-      setCategory('Other');
-      setCustomCategory('General Issue');
-    } finally {
-      setIsAnalyzing(false);
     }
+
+    if (!success) {
+      console.log('⚠️ [AI NOTICE] Gemini API request could not complete with current API key. Check console output above for raw API response details.');
+    }
+
+    setIsAnalyzing(false);
+    console.log('🏁 [AI ANALYSIS COMPLETED]');
+    console.log('====================================================');
   };
 
   const uploadImage = async (uri: string, fileName: string, base64Data?: string | null) => {
@@ -425,7 +601,14 @@ export default function ComplaintScreen() {
 
                 {/* Category Selection */}
                 <View style={styles.inputContainer}>
-                  <Text style={styles.fieldLabel}>SELECT CATEGORY</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={styles.fieldLabel}>SELECT CATEGORY</Text>
+                    {aiSelectedCategory && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#eef2ff', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, gap: 4 }}>
+                        <Text style={{ fontSize: 11, color: '#00386c', fontWeight: '700' }}>✨ AI Selected: {aiSelectedCategory}</Text>
+                      </View>
+                    )}
+                  </View>
                   <TouchableOpacity
                     style={styles.dropdownHeader}
                     activeOpacity={0.8}
@@ -738,7 +921,7 @@ const styles = StyleSheet.create({
     padding: 0,
     ...Platform.select({
       web: {
-        outlineStyle: 'none',
+        outlineStyle: 'none' as any,
       },
     }),
   },
@@ -764,7 +947,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     ...Platform.select({
       web: {
-        outlineStyle: 'none',
+        outlineStyle: 'none' as any,
       },
     }),
   },
@@ -861,5 +1044,10 @@ const styles = StyleSheet.create({
   tabLabelActive: {
     color: '#00386c',
     fontWeight: '700',
+  },
+  activeTabIndicator: {
+    padding: 4,
+    borderRadius: 12,
+    backgroundColor: '#eff4ff',
   },
 });
