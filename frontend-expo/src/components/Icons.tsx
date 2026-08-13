@@ -334,5 +334,44 @@ export const BoldPlusIcon = ({ color = '#ffffff', size = 26 }: IconProps) => (
   </Svg>
 );
 
+export const BotIcon = ({ color = '#ffffff', size = 24 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Rect x="3" y="11" width="18" height="10" rx="3" stroke={color} strokeWidth="2" />
+    <Circle cx="8.5" cy="15.5" r="1.5" fill={color} />
+    <Circle cx="15.5" cy="15.5" r="1.5" fill={color} />
+    <Path d="M12 2V7" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    <Circle cx="12" cy="2" r="1.5" fill={color} />
+    <Path d="M10 19H14" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+    <Path d="M1 14H3M21 14H23" stroke={color} strokeWidth="2" strokeLinecap="round" />
+  </Svg>
+);
+
+export const SparklesIcon = ({ color = '#ffffff', size = 20 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M12 3L13.91 8.26L19.17 10.17L13.91 12.08L12 17.34L10.09 12.08L4.83 10.17L10.09 8.26L12 3Z"
+      fill={color}
+    />
+    <Path
+      d="M19 15L19.96 17.61L22.57 18.57L19.96 19.53L19 22.14L18.04 19.53L15.43 18.57L18.04 17.61L19 15Z"
+      fill={color}
+    />
+    <Path
+      d="M5 2L5.64 3.74L7.38 4.38L5.64 5.02L5 6.76L4.36 5.02L2.62 4.38L4.36 3.74L5 2Z"
+      fill={color}
+    />
+  </Svg>
+);
+
+export const SendIcon = ({ color = '#ffffff', size = 18 }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14L2.01 21Z"
+      fill={color}
+    />
+  </Svg>
+);
+
+
 
 
