@@ -1,10 +1,24 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
-// Use the local computer's IP address for mobile devices, and localhost for web
-export const API_BASE = Platform.OS === 'web'
-  ? 'http://127.0.0.1:8000'
-  : 'http://172.120.22.242:8000';
+const getBackendUrl = () => {
+  if (Platform.OS === 'web') {
+    return 'http://127.0.0.1:8000';
+  }
+  // Try to derive host IP dynamically from Expo dev server
+  const hostUri = Constants.expoConfig?.hostUri || Constants.expoGoConfig?.debuggerHost;
+  if (hostUri) {
+    const ip = hostUri.split(':')[0];
+    if (ip) {
+      return `http://${ip}:8000`;
+    }
+  }
+  // Fallback to PC current Wi-Fi IPv4 address
+  return 'http://10.106.11.15:8000';
+};
+
+export const API_BASE = getBackendUrl();
 
 // Global session store to persist user login info across screens
 class SessionStore {
