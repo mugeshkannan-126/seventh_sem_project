@@ -19,8 +19,9 @@ services:
       - key: API_V1_STR
         value: "/api/v1"
 
-  - type: static
+  - type: web
     name: smart-civic-admin-portal
+    runtime: static
     rootDir: admin-portal
     buildCommand: npm install && npm run build
     staticPublishPath: out
