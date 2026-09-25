@@ -13,6 +13,7 @@ from app.routers import (
     notifications_router,
     feedback_router,
     upload_router,
+    stats_router,
 )
 
 
@@ -50,6 +51,7 @@ app.include_router(status_router)
 app.include_router(notifications_router)
 app.include_router(feedback_router)
 app.include_router(upload_router)
+app.include_router(stats_router)
 
 
 # Custom handler for FastAPI HTTPExceptions to wrap them in standard envelope

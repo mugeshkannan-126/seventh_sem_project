@@ -15,7 +15,11 @@ backend/venv/
 
 # Python (Backend)
 __pycache__/
+**/__pycache__/
 *.py[cod]
+**/*.py[cod]
+*.pyc
+**/*.pyc
 *$py.class
 *.so
 .Python

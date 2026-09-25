@@ -7,6 +7,7 @@ from app.routers.status import router as status_router
 from app.routers.notifications import router as notifications_router
 from app.routers.feedback import router as feedback_router
 from app.routers.upload import router as upload_router
+from app.routers.stats import router as stats_router
 
 __all__ = [
     "health_router",
@@ -18,4 +19,5 @@ __all__ = [
     "notifications_router",
     "feedback_router",
     "upload_router",
+    "stats_router",
 ]
