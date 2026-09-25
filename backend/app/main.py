@@ -54,6 +54,15 @@ app.include_router(upload_router)
 app.include_router(stats_router)
 
 
+def _cors_headers(request: Request) -> dict:
+    origin = request.headers.get("origin")
+    return {
+        "Access-Control-Allow-Origin": origin if origin else "*",
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Methods": "*",
+        "Access-Control-Allow-Headers": "*",
+    }
+
 # Custom handler for FastAPI HTTPExceptions to wrap them in standard envelope
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
@@ -63,7 +72,8 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             "success": False,
             "message": exc.detail,
             "data": None
-        }
+        },
+        headers=_cors_headers(request)
     )
 
 # Custom handler for input validation errors (e.g. invalid type, missing field)
@@ -83,7 +93,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             "success": False,
             "message": combined_message,
             "data": None
-        }
+        },
+        headers=_cors_headers(request)
     )
 
 # Custom handler for any unhandled application exceptions
@@ -95,7 +106,8 @@ async def generic_exception_handler(request: Request, exc: Exception):
             "success": False,
             "message": f"Internal Server Error: {str(exc)}",
             "data": None
-        }
+        },
+        headers=_cors_headers(request)
     )
 
 @app.get("/")
