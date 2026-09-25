@@ -18,3 +18,19 @@ services:
         value: "Smart Civic Platform API"
       - key: API_V1_STR
         value: "/api/v1"
+
+  - type: static
+    name: smart-civic-admin-portal
+    rootDir: admin-portal
+    buildCommand: npm install && npm run build
+    staticPublishPath: out
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://civicproject-ouo8.onrender.com
+      - key: NODE_VERSION
+        value: 20.18.0
+
