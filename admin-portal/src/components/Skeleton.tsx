@@ -1,36 +1,38 @@
-export function TableSkeleton({ rows = 5, cols = 5 }: { rows?: number; cols?: number }) {
+export function TableSkeleton({
+  rows = 5,
+  cols = 5,
+}: {
+  rows?: number;
+  cols?: number;
+}) {
   return (
-    <div className="glass overflow-hidden">
-      <div className="p-4">
-        {/* Header skeleton */}
-        <div className="flex gap-4 mb-6">
-          {Array.from({ length: cols }).map((_, i) => (
-            <div key={i} className="skeleton h-4 flex-1" />
-          ))}
-        </div>
-        {/* Rows */}
-        {Array.from({ length: rows }).map((_, r) => (
-          <div key={r} className="flex gap-4 mb-4">
-            {Array.from({ length: cols }).map((_, c) => (
-              <div key={c} className="skeleton h-5 flex-1" />
-            ))}
-          </div>
+    <div className="gov-card p-4 overflow-hidden animate-pulse">
+      <div className="flex gap-4 mb-4 pb-2 border-b border-slate-200">
+        {Array.from({ length: cols }).map((_, i) => (
+          <div key={i} className="h-4 bg-slate-200 rounded flex-1" />
         ))}
       </div>
+      {Array.from({ length: rows }).map((_, r) => (
+        <div key={r} className="flex gap-4 mb-3">
+          {Array.from({ length: cols }).map((_, c) => (
+            <div key={c} className="h-5 bg-slate-100 rounded flex-1" />
+          ))}
+        </div>
+      ))}
     </div>
   );
 }
 
 export function CardSkeleton() {
   return (
-    <div className="glass p-5">
+    <div className="gov-card p-4 animate-pulse border-t-4 border-t-slate-300">
       <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="skeleton h-3 w-20 mb-2" />
-          <div className="skeleton h-7 w-16 mb-1" />
-          <div className="skeleton h-3 w-24" />
+        <div className="flex-1 space-y-2">
+          <div className="h-3 bg-slate-200 rounded w-20" />
+          <div className="h-7 bg-slate-300 rounded w-16" />
+          <div className="h-3 bg-slate-100 rounded w-24" />
         </div>
-        <div className="skeleton w-11 h-11 rounded-xl" />
+        <div className="w-10 h-10 rounded bg-slate-200" />
       </div>
     </div>
   );
@@ -38,23 +40,15 @@ export function CardSkeleton() {
 
 export function DashboardSkeleton() {
   return (
-    <div className="space-y-6">
-      {/* Stats row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 stagger">
+    <div className="space-y-6 animate-pulse">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {Array.from({ length: 6 }).map((_, i) => (
           <CardSkeleton key={i} />
         ))}
       </div>
-      {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="glass p-6">
-          <div className="skeleton h-4 w-32 mb-4" />
-          <div className="skeleton h-48 w-full" />
-        </div>
-        <div className="glass p-6">
-          <div className="skeleton h-4 w-32 mb-4" />
-          <div className="skeleton h-48 w-full" />
-        </div>
+        <div className="gov-card p-5 h-64 bg-white" />
+        <div className="gov-card p-5 h-64 bg-white" />
       </div>
     </div>
   );

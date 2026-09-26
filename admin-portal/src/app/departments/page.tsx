@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { departmentsApi, Department } from "@/lib/api";
+import { departmentsApi, complaintsApi, Department, Complaint } from "@/lib/api";
 import Modal from "@/components/Modal";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { TableSkeleton } from "@/components/Skeleton";
 
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -33,8 +34,12 @@ export default function DepartmentsPage() {
     setLoading(true);
     setError("");
     try {
-      const d = await departmentsApi.list();
+      const [d, c] = await Promise.all([
+        departmentsApi.list(),
+        complaintsApi.list().catch(() => []),
+      ]);
       setDepartments(d);
+      setComplaints(c);
     } catch (e: unknown) {
       console.error(e);
       setError(e instanceof Error ? e.message : "Failed to fetch departments");
@@ -43,22 +48,40 @@ export default function DepartmentsPage() {
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const getComplaintCount = (deptId: number) => {
+    return complaints.filter((c) => c.department_id === deptId).length;
+  };
 
   const filtered = departments.filter((d) => {
     if (search) {
       const q = search.toLowerCase();
-      return d.department_name.toLowerCase().includes(q) || (d.description ?? "").toLowerCase().includes(q);
+      return (
+        d.department_name.toLowerCase().includes(q) ||
+        (d.description ?? "").toLowerCase().includes(q) ||
+        String(d.department_id).includes(q)
+      );
     }
     return true;
   });
 
   const handleCreate = async () => {
+    if (!formName.trim()) {
+      alert("Please provide department title.");
+      return;
+    }
     setCreating(true);
     try {
-      await departmentsApi.create({ department_name: formName, description: formDesc || undefined });
+      await departmentsApi.create({
+        department_name: formName,
+        description: formDesc || undefined,
+      });
       setCreateOpen(false);
-      setFormName(""); setFormDesc("");
+      setFormName("");
+      setFormDesc("");
       fetchData();
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : "Create failed");
@@ -105,13 +128,13 @@ export default function DepartmentsPage() {
     }
   };
 
-  if (loading) return <TableSkeleton rows={5} cols={3} />;
+  if (loading) return <TableSkeleton rows={6} cols={5} />;
   if (error)
     return (
-      <div className="glass p-8 text-center space-y-3">
-        <p className="text-danger font-medium">Failed to load departments</p>
-        <p className="text-text-dim text-sm max-w-md mx-auto">{error}</p>
-        <button className="btn btn-primary text-sm mt-2" onClick={fetchData}>
+      <div className="gov-card p-8 text-center space-y-3 bg-white">
+        <p className="text-rose-700 font-bold text-sm">Failed to load departments</p>
+        <p className="text-slate-500 text-xs">{error}</p>
+        <button className="btn btn-primary text-xs mt-2" onClick={fetchData}>
           Retry Connection
         </button>
       </div>
@@ -119,106 +142,192 @@ export default function DepartmentsPage() {
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="glass p-4">
-        <div className="flex flex-wrap gap-3">
+      {/* Top Bar */}
+      <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-xs flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
           <input
             type="text"
-            placeholder="Search departments..."
+            placeholder="Search by Department Title or Function..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="input !w-64"
+            className="input w-full sm:!w-80 text-xs"
           />
-          <div className="ml-auto flex items-center gap-3">
-            <span className="text-xs text-text-dim">{filtered.length} departments</span>
-            <button className="btn btn-primary" onClick={() => { setFormName(""); setFormDesc(""); setCreateOpen(true); }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              Add Department
-            </button>
-          </div>
+          <span className="text-xs text-slate-500 font-mono">
+            {filtered.length} of {departments.length} Municipal Wings
+          </span>
+        </div>
+
+        <button
+          onClick={() => setCreateOpen(true)}
+          className="px-3.5 py-2 bg-[#0b3c68] hover:bg-[#072847] text-white text-xs font-bold rounded shadow-xs flex items-center gap-1.5 transition-colors shrink-0"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Add Nodal Department
+        </button>
+      </div>
+
+      {/* Departments Table */}
+      <div className="gov-card overflow-hidden bg-white max-w-full">
+        <div className="overflow-x-auto w-full min-w-0">
+          <table className="admin-table w-full">
+            <thead>
+              <tr>
+                <th className="w-20">Code</th>
+                <th>Department Name</th>
+                <th>Charter &amp; Responsibilities</th>
+                <th className="w-32 text-center">Active Caseload</th>
+                <th className="w-24 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((d) => {
+                const count = getComplaintCount(d.department_id);
+                return (
+                  <tr key={d.department_id} className="hover:bg-slate-50">
+                    <td className="font-mono text-xs font-bold text-[#0b3c68]">
+                      DEPT-#{d.department_id}
+                    </td>
+
+                    <td>
+                      <span className="font-bold text-xs text-slate-900 block">
+                        {d.department_name}
+                      </span>
+                    </td>
+
+                    <td className="text-xs text-slate-600 max-w-md">
+                      {d.description || (
+                        <span className="text-slate-400 italic">No formal charter description filed.</span>
+                      )}
+                    </td>
+
+                    <td className="text-center">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-mono font-bold border ${
+                          count > 0
+                            ? "bg-blue-50 text-[#0b3c68] border-blue-200"
+                            : "bg-slate-50 text-slate-500 border-slate-200"
+                        }`}
+                      >
+                        {count} Grievances
+                      </span>
+                    </td>
+
+                    <td className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => openEdit(d)}
+                          className="p-1.5 text-slate-500 hover:text-[#0b3c68] rounded hover:bg-slate-100"
+                          title="Edit Department"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(d)}
+                          className="p-1.5 text-slate-500 hover:text-rose-600 rounded hover:bg-rose-50"
+                          title="Delete Department"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="text-center text-slate-500 py-10 text-xs">
+                    No departments found matching search criteria.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 stagger">
-        {filtered.map((d) => (
-          <div key={d.department_id} className="glass p-5 hover:border-border-light transition-all duration-300 group">
-            <div className="flex items-start justify-between mb-3">
-              <div className="w-10 h-10 rounded-xl bg-accent-dim flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                  <polyline points="9 22 9 12 15 12 15 22" />
-                </svg>
-              </div>
-              <span className="text-xs text-text-dim font-mono">#{d.department_id}</span>
-            </div>
-            <h3 className="text-sm font-semibold text-text mb-1">{d.department_name}</h3>
-            <p className="text-xs text-text-muted line-clamp-2">{d.description ?? "No description"}</p>
-            <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border">
-              <button className="btn btn-ghost text-xs !px-2 !py-1" onClick={() => openEdit(d)}>
-                Edit
-              </button>
-              <button className="btn btn-ghost text-xs !px-2 !py-1 hover:!text-danger" onClick={() => setDeleteTarget(d)}>
-                Delete
-              </button>
-            </div>
-          </div>
-        ))}
-        {filtered.length === 0 && (
-          <div className="col-span-full text-center text-text-dim py-12">
-            No departments found
-          </div>
-        )}
-      </div>
-
       {/* Create Modal */}
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Create Department">
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Register Nodal Municipal Department">
         <div className="space-y-4">
           <div>
-            <label className="text-xs font-medium text-text-muted block mb-1">Department Name *</label>
-            <input className="input" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. Water Supply" />
+            <label className="text-xs font-bold text-slate-700 block mb-1">Department Title *</label>
+            <input
+              type="text"
+              value={formName}
+              onChange={(e) => setFormName(e.target.value)}
+              placeholder="e.g. Directorate of Water Supply and Sanitation"
+              className="input text-xs"
+            />
           </div>
+
           <div>
-            <label className="text-xs font-medium text-text-muted block mb-1">Description</label>
-            <textarea className="input min-h-[80px] resize-y" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} placeholder="What this department handles..." />
+            <label className="text-xs font-bold text-slate-700 block mb-1">Jurisdiction &amp; Responsibilities</label>
+            <textarea
+              value={formDesc}
+              onChange={(e) => setFormDesc(e.target.value)}
+              placeholder="Brief description of municipal domain, complaint escalation terms, and public services."
+              className="input text-xs min-h-[80px]"
+            />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button className="btn btn-secondary" onClick={() => setCreateOpen(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={handleCreate} disabled={creating || !formName}>
-              {creating ? "Creating..." : "Create Department"}
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+            <button className="btn btn-secondary text-xs" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </button>
+            <button className="btn btn-primary text-xs" onClick={handleCreate} disabled={creating}>
+              {creating ? "Saving..." : "Add Department"}
             </button>
           </div>
         </div>
       </Modal>
 
       {/* Edit Modal */}
-      <Modal open={editOpen} onClose={() => setEditOpen(false)} title={`Edit Department #${editTarget?.department_id}`}>
+      <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit Department Details">
         <div className="space-y-4">
           <div>
-            <label className="text-xs font-medium text-text-muted block mb-1">Department Name</label>
-            <input className="input" value={editName} onChange={(e) => setEditName(e.target.value)} />
+            <label className="text-xs font-bold text-slate-700 block mb-1">Department Title *</label>
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              className="input text-xs"
+            />
           </div>
+
           <div>
-            <label className="text-xs font-medium text-text-muted block mb-1">Description</label>
-            <textarea className="input min-h-[80px] resize-y" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} />
+            <label className="text-xs font-bold text-slate-700 block mb-1">Jurisdiction &amp; Responsibilities</label>
+            <textarea
+              value={editDesc}
+              onChange={(e) => setEditDesc(e.target.value)}
+              className="input text-xs min-h-[80px]"
+            />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button className="btn btn-secondary" onClick={() => setEditOpen(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={handleEdit} disabled={editing}>
-              {editing ? "Saving..." : "Save Changes"}
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+            <button className="btn btn-secondary text-xs" onClick={() => setEditOpen(false)}>
+              Cancel
+            </button>
+            <button className="btn btn-primary text-xs" onClick={handleEdit} disabled={editing}>
+              {editing ? "Updating..." : "Save Changes"}
             </button>
           </div>
         </div>
       </Modal>
 
-      {/* Delete Confirm */}
+      {/* Delete Confirmation */}
       <ConfirmDialog
         open={!!deleteTarget}
-        title="Delete Department"
-        message={`Are you sure you want to delete "${deleteTarget?.department_name}"? Users and complaints linked to this department may be affected.`}
+        title="Deregister Municipal Department"
+        message={`Are you sure you want to remove '${deleteTarget?.department_name}'? Please ensure all active complaints assigned to this department are safely rerouted.`}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
         loading={deleting}

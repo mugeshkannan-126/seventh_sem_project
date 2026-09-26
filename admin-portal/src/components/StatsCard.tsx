@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 
 interface StatsCardProps {
   title: string;
+  subtitle?: string;
   value: string | number;
   icon: ReactNode;
   trend?: string;
@@ -9,36 +10,50 @@ interface StatsCardProps {
 }
 
 const COLOR_MAP = {
-  accent: { bg: "bg-accent-dim", text: "text-accent" },
-  success: { bg: "bg-success-dim", text: "text-success" },
-  warning: { bg: "bg-warning-dim", text: "text-warning" },
-  danger: { bg: "bg-danger-dim", text: "text-danger" },
-  info: { bg: "bg-info-dim", text: "text-info" },
-  violet: { bg: "bg-violet-dim", text: "text-violet" },
+  accent: { border: "border-t-[#0b3c68]", text: "text-[#0b3c68]", bg: "bg-blue-50" },
+  success: { border: "border-t-[#138808]", text: "text-[#138808]", bg: "bg-emerald-50" },
+  warning: { border: "border-t-[#e65100]", text: "text-[#e65100]", bg: "bg-amber-50" },
+  danger: { border: "border-t-[#dc2626]", text: "text-[#dc2626]", bg: "bg-rose-50" },
+  info: { border: "border-t-[#0284c7]", text: "text-[#0284c7]", bg: "bg-sky-50" },
+  violet: { border: "border-t-[#4f46e5]", text: "text-[#4f46e5]", bg: "bg-indigo-50" },
 };
 
 export default function StatsCard({
   title,
+  subtitle,
   value,
   icon,
   trend,
   color = "accent",
 }: StatsCardProps) {
-  const c = COLOR_MAP[color];
+  const c = COLOR_MAP[color] ?? COLOR_MAP.accent;
+
   return (
-    <div className="glass p-5 hover:border-border-light transition-all duration-300 group cursor-default">
-      <div className="flex items-start justify-between">
+    <div
+      className={`gov-card border-t-4 ${c.border} p-4 hover:shadow-md transition-shadow relative overflow-hidden`}
+    >
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-medium text-text-muted uppercase tracking-wide mb-1">
+          {subtitle && (
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              {subtitle}
+            </p>
+          )}
+          <p className="text-xs font-bold text-slate-700 uppercase tracking-wide">
             {title}
           </p>
-          <p className="text-2xl font-bold text-text">{value}</p>
+          <p className="text-2xl font-black text-slate-900 mt-1 font-mono tracking-tight">
+            {value}
+          </p>
           {trend && (
-            <p className="text-xs text-text-dim mt-1">{trend}</p>
+            <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1 font-medium">
+              {trend}
+            </p>
           )}
         </div>
+
         <div
-          className={`w-11 h-11 rounded-xl ${c.bg} flex items-center justify-center ${c.text} group-hover:scale-110 transition-transform duration-300`}
+          className={`w-10 h-10 rounded-md ${c.bg} ${c.text} flex items-center justify-center shrink-0 border border-slate-200`}
         >
           {icon}
         </div>
